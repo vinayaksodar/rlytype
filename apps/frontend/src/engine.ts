@@ -7,6 +7,7 @@ import {
   selectTopPatterns,
   getPatternScores,
   ScoredPattern,
+  getFinger,
 } from "@rlytype/core";
 
 export interface EngineState {
@@ -61,6 +62,7 @@ export class TypingEngine {
   // Batch Tracking
   private batchStartTime: number = 0;
   private batchCorrectChars: number = 0;
+  private isBatchStarted: boolean = false;
 
   // Global Stats for Auto-tuning
   private globalAvgLatency: number = 300; // Start conservative
@@ -120,8 +122,9 @@ export class TypingEngine {
         this.state.stats.wpm = Math.round(this.batchCorrectChars / 5 / durationMin);
       }
       // Reset for next batch
-      this.batchStartTime = now;
+      this.batchStartTime = 0;
       this.batchCorrectChars = 0;
+      this.isBatchStarted = false;
     }
   }
 
@@ -170,6 +173,12 @@ export class TypingEngine {
 
   handleKey(key: string) {
     if (!this.state.isLoaded) return;
+
+    // Start batch timer on first keystroke
+    if (!this.isBatchStarted) {
+      this.batchStartTime = Date.now();
+      this.isBatchStarted = true;
+    }
 
     // Reset session start on first key if idle?
     // For now, simple monolithic session
@@ -227,13 +236,20 @@ export class TypingEngine {
           if (delta < 2000 && !this.latencyInvalidated) {
             // Update Global Average (Slow moving EWMA)
             this.globalAvgLatency = 0.005 * delta + (1 - 0.005) * this.globalAvgLatency;
-            this.config.targetLatency = Math.max(20, this.globalAvgLatency * 0.85);
+            this.config.targetLatency = Math.max(20, this.globalAvgLatency * 0.95);
 
             // Attribution: Bigram (Prev -> Curr)
             const prevChar = targetWord[this.state.activeCharIndex - 1];
             const patternId = prevChar + key; // Simple bigram for now
 
             this.updateStat(patternId, delta, false);
+
+            // Attribution: Same Finger
+            const f1 = getFinger(prevChar);
+            const f2 = getFinger(key);
+            if (f1 !== undefined && f2 !== undefined && f1 === f2 && prevChar !== key) {
+              this.updateStat(`same_finger:${prevChar}${key}`, delta, false);
+            }
           }
         }
 
@@ -251,6 +267,13 @@ export class TypingEngine {
           const prevChar = targetWord[this.state.activeCharIndex - 1];
           const patternId = prevChar + targetChar;
           this.updateStat(patternId, 0, true);
+
+          // Attribution: Same Finger Error
+          const f1 = getFinger(prevChar);
+          const f2 = getFinger(targetChar);
+          if (f1 !== undefined && f2 !== undefined && f1 === f2 && prevChar !== targetChar) {
+            this.updateStat(`same_finger:${prevChar}${targetChar}`, 0, true);
+          }
         }
       }
     }

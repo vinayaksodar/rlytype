@@ -23,8 +23,15 @@ export function calculatePatternScore(
 ): number {
   const sampleLatency = deterministic ? p.ewmaLatency : sampleNormal(p.ewmaLatency, p.ewmaVariance);
 
+  // Leniancy for biomechanically difficult patterns (Same Finger Jumps)
+  // We discount their latency by 15% because they are naturally slower.
+  let adjustedLatency = sampleLatency;
+  if (p.id.startsWith("same_finger:")) {
+    adjustedLatency *= 0.85;
+  }
+
   // 3. Weakness (Gap)
-  const gap = Math.max(0, sampleLatency - config.targetLatency);
+  const gap = Math.max(0, adjustedLatency - config.targetLatency);
 
   // 4. Time Decay
   const timeBoost = timeBoostFunc(Date.now() - p.lastSeen);
