@@ -6,6 +6,10 @@ An adaptive, client-side typing tutor that focuses on mastering **keyboard patte
 
 Most typing tutors focus on words or random characters. **RlyType** treats words merely as "delivery vehicles" for specific motor-skill patterns. By identifying exactly which key transitions (e.g., `th`, `ing`, `ed`) are slowing you down, the engine adapts in real-time to drill your weaknesses until they become muscle memory.
 
+## Application Images
+
+![Screenshot](docs/images/screenshot.png)
+
 ## 🚀 How it Works
 
 ### 1. Pattern-Based Learning
