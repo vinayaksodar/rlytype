@@ -19,7 +19,7 @@ export interface EngineState {
     wpm: number;
     accuracy: number; // Percentage
     sessionTime: number; // Seconds
-    topBottleneck: string; // ID of pattern with high latency
+    currentPattern: string; // ID of the pattern currently being targeted
   };
   isLoaded: boolean;
 }
@@ -33,7 +33,7 @@ export class TypingEngine {
     activeCharIndex: 0,
     typedSoFar: "",
     isError: false,
-    stats: { wpm: 0, accuracy: 100, sessionTime: 0, topBottleneck: "" },
+    stats: { wpm: 0, accuracy: 100, sessionTime: 0, currentPattern: "" },
     isLoaded: false,
   };
 
@@ -74,10 +74,9 @@ export class TypingEngine {
     const loadedStats = await storage.loadAllPatternStats();
     loadedStats.forEach((s) => this.patternStats.set(s.id, s));
 
-    this.recalcBottleneck();
-
     // Generate initial batch
     this.generateMoreWords();
+    this.updateCurrentPattern();
 
     this.state.isLoaded = true;
     this.sessionStart = Date.now();
@@ -108,18 +107,12 @@ export class TypingEngine {
     this.notify();
   }
 
-  private recalcBottleneck() {
-    // Find pattern with highest EWMA Latency that has samples > 5
-    let worstId = "";
-    let maxLat = 0;
-    this.patternStats.forEach((p) => {
-      if (p.n > 5 && p.ewmaLatency > maxLat) {
-        maxLat = p.ewmaLatency;
-        worstId = p.id;
-      }
-    });
-    if (worstId) {
-      this.state.stats.topBottleneck = `${worstId} (${Math.round(maxLat)}ms)`;
+  private updateCurrentPattern() {
+    const currentWordObj = this.state.words[this.state.activeWordIndex];
+    if (currentWordObj && currentWordObj.targetMatches && currentWordObj.targetMatches.length > 0) {
+      this.state.stats.currentPattern = currentWordObj.targetMatches[0].pattern;
+    } else {
+      this.state.stats.currentPattern = "--";
     }
   }
 
@@ -185,6 +178,7 @@ export class TypingEngine {
         this.state.activeCharIndex = 0;
         this.state.typedSoFar = "";
         this.lastKeyTime = now;
+        this.updateCurrentPattern();
 
         // Maintain buffer
         if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
@@ -264,7 +258,6 @@ export class TypingEngine {
     });
     this.dirtyStats.clear();
     await storage.savePatternStats(toSave);
-    this.recalcBottleneck();
   }
 
   getPatternHeatmapData(): ScoredPattern[] {

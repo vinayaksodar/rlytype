@@ -33,7 +33,7 @@ engine.subscribe((state) => {
   statsRenderer.render({
     wpm: state.stats.wpm,
     accuracy: state.stats.accuracy,
-    topBottleneck: state.stats.topBottleneck,
+    currentPattern: state.stats.currentPattern,
   });
 
   // Update heatmap only when a new batch (page) starts to avoid jarring updates

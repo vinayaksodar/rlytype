@@ -1,14 +1,14 @@
 export interface StatsViewProps {
   wpm: number;
   accuracy: number;
-  topBottleneck: string;
+  currentPattern: string;
 }
 
 export class StatsRenderer {
   private container: HTMLElement;
   private wpmEl: HTMLElement;
   private accEl: HTMLElement;
-  private bottleEl: HTMLElement;
+  private patternEl: HTMLElement;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -24,7 +24,7 @@ export class StatsRenderer {
 
     this.wpmEl = this.createStatBox("WPM", "0");
     this.accEl = this.createStatBox("Accuracy", "100%");
-    this.bottleEl = this.createStatBox("Slowest Pattern", "--");
+    this.patternEl = this.createStatBox("Current Pattern", "--");
   }
 
   private createStatBox(label: string, value: string): HTMLElement {
@@ -54,6 +54,6 @@ export class StatsRenderer {
   render(stats: StatsViewProps) {
     this.wpmEl.textContent = stats.wpm.toString();
     this.accEl.textContent = stats.accuracy + "%";
-    this.bottleEl.textContent = stats.topBottleneck || "None yet";
+    this.patternEl.textContent = stats.currentPattern || "--";
   }
 }

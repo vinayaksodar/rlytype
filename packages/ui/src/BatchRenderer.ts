@@ -58,14 +58,6 @@ export class BatchRenderer {
         let color = "#e0e0e0";
         let bg = "transparent";
 
-        // Target Highlighting
-        const inTarget = w.targetMatches.some((m) => {
-          const pLen = m.pattern.includes(":") ? m.pattern.split(":")[1].length : m.pattern.length;
-          return charIdx >= m.startIndex && charIdx < m.startIndex + pLen;
-        });
-
-        if (inTarget) color = "#64b5f6"; // Light Blue
-
         // Active Typing Feedback overrides
         if (isActive) {
           if (charIdx < activeCharIndex) {
