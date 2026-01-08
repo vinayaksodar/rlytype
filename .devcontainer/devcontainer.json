@@ -1,0 +1,32 @@
+{
+  "name": "Plot-lines Dev Environment",
+  // Use the official Microsoft Node.js image.
+  // See https://hub.docker.com/_/microsoft-vscode-devcontainers for more options.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+
+  // Forward the port that Vite uses.
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite Dev Server",
+      "onAutoForward": "openPreview"
+    }
+  },
+
+  // Run 'npm install' after the container is created.
+  "postCreateCommand": "npm install",
+
+  // Configure VS Code settings and extensions.
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode"
+      },
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  }
+
+  // Uncomment to connect as a non-root user.
+  // "remoteUser": "node"
+}
