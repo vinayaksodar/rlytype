@@ -26,4 +26,5 @@ export interface UserConfig {
   w_weak: number;
   w_time: number;
   w_fatigue: number;
+  w_error: number;
 }

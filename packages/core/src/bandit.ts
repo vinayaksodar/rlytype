@@ -40,10 +40,13 @@ export function calculatePatternScore(
 
   const masteryPenalty = isMastered ? 1000 : 0;
 
+  const errorRate = p.errorBeta / (p.errorAlpha + p.errorBeta);
+
   return (
     config.w_unc * Math.sqrt(p.ewmaVariance) +
     config.w_weak * gap +
-    config.w_time * timeBoost -
+    config.w_time * timeBoost +
+    config.w_error * errorRate * 100 -
     masteryPenalty
   );
 }

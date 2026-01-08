@@ -47,6 +47,7 @@ export class TypingEngine {
     w_weak: 2.0,
     w_time: 1.2,
     w_fatigue: 0,
+    w_error: 5.0,
   };
 
   private lastKeyTime: number = 0;
