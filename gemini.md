@@ -220,8 +220,9 @@ When strict focus is enabled (currently default):
 
 **Handling Errors:**
 
-- If `Backspace` is pressed, the previous pattern attempt is marked as `Failure` (increment Beta).
-- Latency during correction is discarded to avoid polluting the stats.
+- If a typo is made, the error is immediately recorded (incrementing the Beta failure count for that pattern).
+- **Latency Invalidation:** A `latencyInvalidated` flag is set upon error. The subsequent correct keystroke for that character will **not** record a latency sample. This ensures "Error Recovery Time" does not pollute the speed metrics.
+- Latency measurement resumes only after a successful, un-invalidated keystroke.
 
 ---
 
@@ -337,6 +338,7 @@ function selectTopPatterns(allStats: PatternStat[], k = 3) {
 - [x] **Feature:** Strict Focus Mode (100% density for top pattern).
 - [x] **Feature:** Visual Pattern Heatmap (Grid view, color-coded by score).
 - [x] **Refactor:** Synchronized Batch Size (10 words) across Engine and UI.
+- [x] **Refinement:** Latency Invalidation (Discarding recovery time after errors).
 
 ### Pending / Next Steps
 

@@ -50,6 +50,7 @@ export class TypingEngine {
   };
 
   private lastKeyTime: number = 0;
+  private latencyInvalidated: boolean = false;
 
   // Session Tracking
   private sessionStart: number = 0;
@@ -207,7 +208,8 @@ export class TypingEngine {
         if (this.state.activeCharIndex > 0) {
           const delta = now - this.lastKeyTime;
           // Rule: Discard > 2000ms
-          if (delta < 2000) {
+          // Rule: Discard if we previously errored on this character (latency is polluted)
+          if (delta < 2000 && !this.latencyInvalidated) {
             // Attribution: Bigram (Prev -> Curr)
             const prevChar = targetWord[this.state.activeCharIndex - 1];
             const patternId = prevChar + key; // Simple bigram for now
@@ -219,9 +221,12 @@ export class TypingEngine {
         this.state.typedSoFar += key;
         this.state.activeCharIndex++;
         this.lastKeyTime = now;
+        this.latencyInvalidated = false; // Reset for next char
       } else {
         // Error
         this.state.isError = true;
+        this.latencyInvalidated = true; // Mark latency as garbage for when they finally get it right
+
         // Attribution
         if (this.state.activeCharIndex > 0) {
           const prevChar = targetWord[this.state.activeCharIndex - 1];
