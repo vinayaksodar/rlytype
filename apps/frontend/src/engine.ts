@@ -171,6 +171,20 @@ export class TypingEngine {
     this.state.words = [...this.state.words, ...newBatch];
   }
 
+  private advanceWord(now: number) {
+    this.state.activeWordIndex++;
+    this.state.activeCharIndex = 0;
+    this.state.typedSoFar = "";
+    this.lastKeyTime = now;
+    this.updateCurrentPattern();
+    this.checkBatchWpm();
+
+    // Maintain buffer
+    if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
+      this.generateMoreWords();
+    }
+  }
+
   handleKey(key: string) {
     if (!this.state.isLoaded) return;
 
@@ -201,24 +215,16 @@ export class TypingEngine {
         // because our Generator/Indexer does not support patterns ending in space yet.
         // If we added them to stats, they would become bottlenecks that the generator cannot target.
 
-        // Advance Word
-        this.state.activeWordIndex++;
-        this.state.activeCharIndex = 0;
-        this.state.typedSoFar = "";
-        this.lastKeyTime = now;
-        this.updateCurrentPattern();
-        this.checkBatchWpm();
-
-        // Maintain buffer
-        if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
-          this.generateMoreWords();
-        }
+        this.advanceWord(now);
       } else {
         // Error on Space
         this.state.isError = true;
         // No attribution for space error currently
       }
     } else {
+      // Ignore space at the beginning of a word (often a habitual press after auto-advance)
+      if (key === " " && this.state.activeCharIndex === 0) return;
+
       const targetChar = targetWord[this.state.activeCharIndex];
       // 1. Check Correctness
       if (key === targetChar) {
@@ -257,6 +263,13 @@ export class TypingEngine {
         this.state.activeCharIndex++;
         this.lastKeyTime = now;
         this.latencyInvalidated = false; // Reset for next char
+
+        // Auto-advance if last char of last word in batch
+        const isLastCharOfWord = this.state.activeCharIndex === targetWord.length;
+        const isLastWordOfBatch = (this.state.activeWordIndex + 1) % BATCH_SIZE === 0;
+        if (isLastCharOfWord && isLastWordOfBatch) {
+          this.advanceWord(now);
+        }
       } else {
         // Error
         this.state.isError = true;
