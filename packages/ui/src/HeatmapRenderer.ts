@@ -27,16 +27,11 @@ export class HeatmapRenderer {
 
     // Map for quick lookup
     const patternMap = new Map<string, ScoredPattern>();
-    let maxScore = 0;
-    let minScore = Infinity;
 
     patterns.forEach((p) => {
       patternMap.set(p.id, p);
-      if (p.score > maxScore) maxScore = p.score;
-      if (p.score < minScore) minScore = p.score;
     });
 
-    const range = maxScore - minScore || 1;
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
 
     for (let i = 0; i < alphabet.length; i++) {
@@ -65,9 +60,12 @@ Var: ${Math.round(p.stat.ewmaVariance)}`;
 
           el.style.color = "#fff"; // Visible text for active
 
-          // Color Map logic
-          const normalized = (p.score - minScore) / range;
-          const hue = (1 - normalized) * 120; // Red (0) to Green (120)
+          // Color Map logic (Absolute Scale)
+          // Score 0 -> Green (120)
+          // Score 300 -> Red (0)
+          const clampedScore = Math.max(0, Math.min(300, p.score));
+          const normalized = clampedScore / 300;
+          const hue = (1 - normalized) * 120;
           el.style.backgroundColor = `hsl(${hue}, 80%, 35%)`;
         }
 

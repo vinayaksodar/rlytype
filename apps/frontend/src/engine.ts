@@ -57,6 +57,13 @@ export class TypingEngine {
   private totalKeystrokes: number = 0;
   private correctKeystrokes: number = 0;
 
+  // Batch Tracking
+  private batchStartTime: number = 0;
+  private batchCorrectChars: number = 0;
+
+  // Global Stats for Auto-tuning
+  private globalAvgLatency: number = 300; // Start conservative
+
   // Stats Buffer for periodic save
   private dirtyStats: Set<PatternId> = new Set();
   private saveInterval: ReturnType<typeof setInterval> | null = null;
@@ -80,6 +87,7 @@ export class TypingEngine {
 
     this.state.isLoaded = true;
     this.sessionStart = Date.now();
+    this.batchStartTime = Date.now();
     this.notify();
 
     // Auto-save loop
@@ -92,12 +100,7 @@ export class TypingEngine {
   private updateSessionStats() {
     if (!this.sessionStart) return;
     const now = Date.now();
-    const durationMin = (now - this.sessionStart) / 60000;
-
-    if (durationMin > 0) {
-      // WPM = (All characters / 5) / Time in Minutes
-      this.state.stats.wpm = Math.round(this.correctKeystrokes / 5 / durationMin);
-    }
+    // WPM is now calculated per batch in checkBatchWpm() to avoid idle decay
 
     if (this.totalKeystrokes > 0) {
       this.state.stats.accuracy = Math.round((this.correctKeystrokes / this.totalKeystrokes) * 100);
@@ -105,6 +108,20 @@ export class TypingEngine {
 
     this.state.stats.sessionTime = Math.floor((now - this.sessionStart) / 1000);
     this.notify();
+  }
+
+  private checkBatchWpm() {
+    // If we just started a new batch (index is multiple of BATCH_SIZE)
+    if (this.state.activeWordIndex > 0 && this.state.activeWordIndex % BATCH_SIZE === 0) {
+      const now = Date.now();
+      const durationMin = (now - this.batchStartTime) / 60000;
+      if (durationMin > 0) {
+        this.state.stats.wpm = Math.round(this.batchCorrectChars / 5 / durationMin);
+      }
+      // Reset for next batch
+      this.batchStartTime = now;
+      this.batchCorrectChars = 0;
+    }
   }
 
   private updateCurrentPattern() {
@@ -168,6 +185,7 @@ export class TypingEngine {
         // Correct Space -> Advance
         this.state.isError = false;
         this.correctKeystrokes++;
+        this.batchCorrectChars++;
 
         // NOTE: We do NOT measure latency for Space (LastChar -> Space)
         // because our Generator/Indexer does not support patterns ending in space yet.
@@ -179,6 +197,7 @@ export class TypingEngine {
         this.state.typedSoFar = "";
         this.lastKeyTime = now;
         this.updateCurrentPattern();
+        this.checkBatchWpm();
 
         // Maintain buffer
         if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
@@ -196,6 +215,7 @@ export class TypingEngine {
         // Correct
         this.state.isError = false;
         this.correctKeystrokes++;
+        this.batchCorrectChars++;
 
         // Measure Latency
         // Rule: Discard first char of word
@@ -204,6 +224,10 @@ export class TypingEngine {
           // Rule: Discard > 2000ms
           // Rule: Discard if we previously errored on this character (latency is polluted)
           if (delta < 2000 && !this.latencyInvalidated) {
+            // Update Global Average (Slow moving EWMA)
+            this.globalAvgLatency = 0.005 * delta + (1 - 0.005) * this.globalAvgLatency;
+            this.config.targetLatency = Math.max(20, this.globalAvgLatency * 0.85);
+
             // Attribution: Bigram (Prev -> Curr)
             const prevChar = targetWord[this.state.activeCharIndex - 1];
             const patternId = prevChar + key; // Simple bigram for now
