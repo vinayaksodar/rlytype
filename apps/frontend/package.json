@@ -14,8 +14,9 @@
     "@rlytype/core": "*",
     "@rlytype/generator": "*",
     "@rlytype/storage": "*",
+    "@rlytype/types": "*",
     "@rlytype/ui": "*",
-    "@rlytype/types": "*"
+    "@vercel/analytics": "^1.6.1"
   },
   "devDependencies": {
     "typescript": "^5.2.2",

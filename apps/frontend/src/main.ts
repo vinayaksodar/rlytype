@@ -1,6 +1,10 @@
+import { inject } from "@vercel/analytics";
 import { engine } from "./engine";
 import { BatchRenderer, StatsRenderer, HeatmapRenderer } from "@rlytype/ui";
 import { BATCH_SIZE } from "@rlytype/types";
+
+// Initialize Vercel Web Analytics
+inject();
 
 const streamContainer = document.getElementById("stream-container")!;
 const statsContainer = document.getElementById("stats-container")!;
