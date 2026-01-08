@@ -49,7 +49,7 @@ export class BatchRenderer {
       const isActive = globalIndex === activeWordIndex;
 
       const wordDiv = document.createElement("div");
-      wordDiv.style.marginRight = "1.5ch";
+      wordDiv.style.marginRight = "0";
       wordDiv.style.marginBottom = "1.0rem"; // Spacing for wrapped lines
       wordDiv.style.opacity = isActive ? "1" : globalIndex < activeWordIndex ? "0.3" : "0.6"; // Dim past words more
       wordDiv.style.display = "inline-block";
@@ -91,6 +91,16 @@ export class BatchRenderer {
 
         wordDiv.appendChild(span);
       });
+
+      // Append space character
+      const spaceSpan = document.createElement("span");
+      spaceSpan.textContent = " ";
+      spaceSpan.style.whiteSpace = "pre";
+      spaceSpan.style.transition = "all 0.1s";
+      if (isActive && activeCharIndex === w.word.length) {
+        spaceSpan.style.backgroundColor = isError ? "#b71c1c" : "#424242";
+      }
+      wordDiv.appendChild(spaceSpan);
 
       this.container.appendChild(wordDiv);
     });

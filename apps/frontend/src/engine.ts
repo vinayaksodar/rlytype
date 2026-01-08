@@ -164,55 +164,70 @@ export class TypingEngine {
 
     const currentWordObj = this.state.words[this.state.activeWordIndex];
     const targetWord = currentWordObj.word;
-    const targetChar = targetWord[this.state.activeCharIndex];
     const now = Date.now();
+    const wordFinished = this.state.activeCharIndex === targetWord.length;
 
     this.totalKeystrokes++;
 
-    // 1. Check Correctness
-    if (key === targetChar) {
-      // Correct
-      this.state.isError = false;
-      this.correctKeystrokes++;
+    if (wordFinished) {
+      if (key === " ") {
+        // Correct Space -> Advance
+        this.state.isError = false;
+        this.correctKeystrokes++;
 
-      // Measure Latency
-      // Rule: Discard first char of word
-      if (this.state.activeCharIndex > 0) {
-        const delta = now - this.lastKeyTime;
-        // Rule: Discard > 2000ms
-        if (delta < 2000) {
-          // Attribution: Bigram (Prev -> Curr)
-          const prevChar = targetWord[this.state.activeCharIndex - 1];
-          const patternId = prevChar + key; // Simple bigram for now
+        // NOTE: We do NOT measure latency for Space (LastChar -> Space)
+        // because our Generator/Indexer does not support patterns ending in space yet.
+        // If we added them to stats, they would become bottlenecks that the generator cannot target.
 
-          this.updateStat(patternId, delta, false);
-        }
-      }
-
-      this.state.typedSoFar += key;
-      this.state.activeCharIndex++;
-      this.lastKeyTime = now;
-
-      // Word Complete
-      if (this.state.activeCharIndex >= targetWord.length) {
+        // Advance Word
         this.state.activeWordIndex++;
         this.state.activeCharIndex = 0;
         this.state.typedSoFar = "";
-        // this.wordStartTime = now;
+        this.lastKeyTime = now;
 
         // Maintain buffer
         if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
           this.generateMoreWords();
         }
+      } else {
+        // Error on Space
+        this.state.isError = true;
+        // No attribution for space error currently
       }
     } else {
-      // Error
-      this.state.isError = true;
-      // Attribution
-      if (this.state.activeCharIndex > 0) {
-        const prevChar = targetWord[this.state.activeCharIndex - 1];
-        const patternId = prevChar + targetChar;
-        this.updateStat(patternId, 0, true);
+      const targetChar = targetWord[this.state.activeCharIndex];
+      // 1. Check Correctness
+      if (key === targetChar) {
+        // Correct
+        this.state.isError = false;
+        this.correctKeystrokes++;
+
+        // Measure Latency
+        // Rule: Discard first char of word
+        if (this.state.activeCharIndex > 0) {
+          const delta = now - this.lastKeyTime;
+          // Rule: Discard > 2000ms
+          if (delta < 2000) {
+            // Attribution: Bigram (Prev -> Curr)
+            const prevChar = targetWord[this.state.activeCharIndex - 1];
+            const patternId = prevChar + key; // Simple bigram for now
+
+            this.updateStat(patternId, delta, false);
+          }
+        }
+
+        this.state.typedSoFar += key;
+        this.state.activeCharIndex++;
+        this.lastKeyTime = now;
+      } else {
+        // Error
+        this.state.isError = true;
+        // Attribution
+        if (this.state.activeCharIndex > 0) {
+          const prevChar = targetWord[this.state.activeCharIndex - 1];
+          const patternId = prevChar + targetChar;
+          this.updateStat(patternId, 0, true);
+        }
       }
     }
 
