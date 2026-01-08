@@ -20,8 +20,8 @@ export class BatchRenderer {
     this.container.style.display = "flex";
     this.container.style.flexWrap = "wrap"; // Allow wrapping
     this.container.style.alignItems = "flex-start"; // Top align for paragraph view
-    this.container.style.justifyContent = "flex-start";
-    this.container.style.fontSize = "2.5rem";
+    this.container.style.justifyContent = "center";
+    this.container.style.fontSize = "2.1rem";
     this.container.style.fontFamily = '"Fira Code", monospace';
     // this.container.style.overflow = 'hidden'; // Not strictly needed if we wrap
     this.container.style.padding = "2rem";

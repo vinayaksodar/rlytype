@@ -17,6 +17,10 @@ export class HeatmapRenderer {
     this.container.style.borderTop = "1px solid #333";
     this.container.style.borderBottom = "1px solid #333";
     this.container.style.overflowY = "visible";
+    this.container.style.maxWidth = "500px";
+    this.container.style.width = "100%";
+    this.container.style.marginLeft = "auto";
+    this.container.style.marginRight = "auto";
   }
 
   render(patterns: ScoredPattern[]) {
@@ -26,7 +30,9 @@ export class HeatmapRenderer {
     const grid = document.createElement("div");
     grid.style.display = "grid";
     grid.style.gridTemplateColumns = "repeat(26, 1fr)";
+    grid.style.gridTemplateRows = "repeat(26, 1fr)";
     grid.style.gap = "1px";
+    grid.style.aspectRatio = "1 / 1";
 
     // Map for quick lookup
     const patternMap = new Map<string, ScoredPattern>();
@@ -45,15 +51,13 @@ export class HeatmapRenderer {
 
         const el = document.createElement("div");
         el.textContent = bigram;
-        el.style.fontSize = "10px";
+        el.style.fontSize = "7px"; // Slightly smaller font to fit square cells
         el.style.fontFamily = "monospace";
         el.style.display = "flex";
         el.style.alignItems = "center";
         el.style.justifyContent = "center";
-        el.style.height = "20px";
         el.style.cursor = "default";
         el.style.color = "#444"; // Default dim color
-        el.style.backgroundColor = "#111"; // Default dim bg
 
         if (p) {
           el.title = `Score: ${p.score.toFixed(1)}

@@ -15,16 +15,16 @@ export class StatsRenderer {
     this.container.style.display = "flex";
     this.container.style.gap = "2rem";
     this.container.style.padding = "1rem 2rem";
-    this.container.style.background = "#222";
+    this.container.style.background = "#151515ff";
     this.container.style.color = "#ccc";
     this.container.style.fontFamily = "sans-serif";
     this.container.style.fontSize = "0.9rem";
     this.container.style.borderBottom = "1px solid #333";
-    this.container.style.justifyContent = "space-between";
+    this.container.style.justifyContent = "space-around";
 
+    this.patternEl = this.createStatBox("Current Pattern", "--");
     this.wpmEl = this.createStatBox("WPM", "0");
     this.accEl = this.createStatBox("Accuracy", "100%");
-    this.patternEl = this.createStatBox("Current Pattern", "--");
   }
 
   private createStatBox(label: string, value: string): HTMLElement {
