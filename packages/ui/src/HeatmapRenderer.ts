@@ -25,6 +25,24 @@ export class HeatmapRenderer {
   render(patterns: ScoredPattern[]) {
     this.container.innerHTML = "";
 
+    if (patterns.length === 0) {
+      this.container.style.display = "flex";
+      this.container.style.alignItems = "center";
+      this.container.style.justifyContent = "center";
+      this.container.style.minHeight = "100px";
+
+      const msg = document.createElement("div");
+      msg.textContent = "type to generate heatmap of patterns(not enough data)";
+      msg.style.color = "#555";
+      msg.style.fontSize = "0.9rem";
+      msg.style.fontFamily = "sans-serif";
+      this.container.appendChild(msg);
+      return;
+    }
+
+    this.container.style.display = "grid";
+    this.container.style.minHeight = ""; // Reset
+
     // Map for quick lookup
     const patternMap = new Map<string, ScoredPattern>();
 
