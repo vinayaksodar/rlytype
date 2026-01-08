@@ -1,11 +1,45 @@
+# OS
 .DS_Store
+Thumbs.db
+
+# Dependencies
 node_modules
-.turbo
-*.log
+.pnp
+.pnp.js
+
+# Build Outputs
 dist
 dist-ssr
-*.local
+build
+*.tsbuildinfo
+
+# TurboRepo
+.turbo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment Variables
 .env
+.env.*.local
+*.local
+
+# Cache
 .cache
-server/dist
-public/dist
+.eslintcache
+
+# Testing
+coverage
+
+# Vite
+*.timestamp-*
+
+# Editor
+.idea
+.vscode
+*.swp
+*.swo
