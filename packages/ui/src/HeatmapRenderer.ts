@@ -51,7 +51,7 @@ export class HeatmapRenderer {
 
         const el = document.createElement("div");
         el.textContent = bigram;
-        el.style.fontSize = "7px"; // Slightly smaller font to fit square cells
+        el.style.fontSize = "12px"; // Slightly smaller font to fit square cells
         el.style.fontFamily = "monospace";
         el.style.display = "flex";
         el.style.alignItems = "center";
