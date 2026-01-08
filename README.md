@@ -2,7 +2,7 @@
 
 An adaptive, client-side typing tutor that focuses on mastering **keyboard patterns** (bigrams, trigrams, and finger movements) rather than just words.
 
-## 🎯 Project Goal
+## Project Goal
 
 Most typing tutors focus on words or random characters. **RlyType** treats words merely as "delivery vehicles" for specific motor-skill patterns. By identifying exactly which key transitions (e.g., `th`, `ing`, `ed`) are slowing you down, the engine adapts in real-time to drill your weaknesses until they become muscle memory.
 
@@ -10,7 +10,7 @@ Most typing tutors focus on words or random characters. **RlyType** treats words
 
 ![Screenshot](docs/images/screenshot.png)
 
-## 🚀 How it Works
+## How it Works
 
 ### 1. Pattern-Based Learning
 
@@ -49,7 +49,7 @@ To maintain focus and provide clear milestones, the UI renders words in fixed, d
 - **Milestones:** Completing a batch triggers a refresh to the next set of words, giving a sense of accomplishment.
 - **Progress Tracking:** Stats and the heatmap are updated at these natural break points.
 
-## 🛠 Tech Stack
+## Tech Stack
 
 - **Monorepo:** Turborepo
 - **Frontend:** Vite + TypeScript
@@ -57,7 +57,7 @@ To maintain focus and provide clear milestones, the UI renders words in fixed, d
 - **Storage:** IndexedDB (all data stays locally on your machine)
 - **Styling:** Plain CSS with a focus on high-contrast, low-latency rendering.
 
-## 🏃 Running Locally
+## Running Locally
 
 1. **Install dependencies:**
 
@@ -75,7 +75,3 @@ To maintain focus and provide clear milestones, the UI renders words in fixed, d
    ```bash
    npm run build
    ```
-
-## 📄 License
-
-MIT
