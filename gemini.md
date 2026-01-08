@@ -176,8 +176,16 @@ Sort by descending score:
 
 ```ts
 score =
-  w_unc * sampleStd + w_weak * Gap + w_time * TimeBoost - w_fatigue * Fatigue - MasteryPenalty;
+  w_unc * sampleStd +
+  w_weak * Gap +
+  w_time * TimeBoost +
+  w_error * ErrorRate * 100 -
+  w_fatigue * Fatigue -
+  MasteryPenalty;
 ```
+
+**Biomechanical Leniancy:**
+Patterns tagged as `same_finger:` (e.g., `ed`, `lo`) receive a **15% discount** on their sampled latency before the "Gap" is calculated. This prevents the system from unfairly penalizing naturally slower movements.
 
 ---
 
@@ -339,6 +347,11 @@ function selectTopPatterns(allStats: PatternStat[], k = 3) {
 - [x] **Feature:** Visual Pattern Heatmap (Grid view, color-coded by score).
 - [x] **Refactor:** Synchronized Batch Size (10 words) across Engine and UI.
 - [x] **Refinement:** Latency Invalidation (Discarding recovery time after errors).
+- [x] **Feature:** Error Rate Scoring (Bandit prioritizes sloppy patterns).
+- [x] **Feature:** Auto-Tuning Target Latency (Adapts to user's WPM, set to 5% faster than average).
+- [x] **Feature:** Biomechanical Leniancy (15% discount for same-finger jumps).
+- [x] **Refinement:** Heatmap Absolute Scaling (Fixed color thresholds).
+- [x] **Refinement:** Batch-based WPM Calculation (No idle decay).
 
 ### Pending / Next Steps
 
