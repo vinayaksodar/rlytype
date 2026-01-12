@@ -1,0 +1,127 @@
+#app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* Sidebar */
+#sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  transition: width 0.5s ease-in-out, transform 0.5s ease-in-out;
+  overflow-y: auto;
+  flex-shrink: 0;
+  z-index: 20;
+}
+
+#sidebar.collapsed {
+  width: 0;
+  overflow: hidden;
+  border-right: none;
+}
+
+/* Main Stage */
+#main-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  background-color: var(--bg-main);
+  height: 100vh;
+}
+
+/* Header */
+#cockpit-header {
+  height: var(--header-height);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  background-color: rgba(7, 7, 8, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+}
+
+/* Hero Stage (Typing Area) */
+#hero-stage {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  padding: 2rem;
+}
+
+/* Adaptive Footer */
+#adaptive-footer {
+  height: var(--footer-height);
+  border-top: 1px solid var(--border-subtle);
+  background-color: var(--surface-panel);
+  display: flex;
+  flex-direction: column;
+  transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: visible;
+  z-index: 10;
+}
+
+#adaptive-footer.collapsed {
+  height: 12px; /* Small visible handle line */
+}
+
+#footer-content {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: 100%;
+  transition: opacity 0.2s ease;
+}
+
+#adaptive-footer.collapsed #footer-content {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.footer-panel {
+  flex: 1;
+  border-right: 1px solid var(--border-subtle);
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-panel:last-child {
+  border-right: none;
+}
+
+/* --- Global Scrollbar Styling --- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-main); 
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle); 
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted); 
+}
+
+/* Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) var(--bg-main);
+}

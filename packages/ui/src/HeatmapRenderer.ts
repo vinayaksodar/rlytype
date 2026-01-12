@@ -5,36 +5,122 @@ export class HeatmapRenderer {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.initStyles();
   }
 
-  private initStyles() {
-    this.container.style.position = "relative";
-    this.container.style.padding = "10px";
-    this.container.style.background = "#0a0a0a";
-    this.container.style.marginTop = "1rem";
-    this.container.style.marginBottom = "1rem";
-    this.container.style.borderTop = "1px solid #333";
-    this.container.style.borderBottom = "1px solid #333";
-    this.container.style.overflowY = "visible";
-    this.container.style.maxWidth = "500px";
-    this.container.style.width = "100%";
-    this.container.style.marginLeft = "auto";
-    this.container.style.marginRight = "auto";
-  }
-
-  render(patterns: ScoredPattern[]) {
+  render(patterns: ScoredPattern[], mode: string = "Bigram") {
     this.container.innerHTML = "";
+    this.container.className = "heatmap-container"; // Reset classes
 
-    // Create the grid wrapper
+    if (mode === "Unigram") {
+      this.renderUnigram(patterns);
+    } else if (mode === "Trigram") {
+      this.renderTrigram(patterns);
+    } else {
+      this.renderBigram(patterns);
+    }
+  }
+
+  private renderUnigram(patterns: ScoredPattern[]) {
+    this.container.classList.add("unigram-view");
     const grid = document.createElement("div");
-    grid.style.display = "grid";
-    grid.style.gridTemplateColumns = "repeat(26, 1fr)";
-    grid.style.gridTemplateRows = "repeat(26, 1fr)";
-    grid.style.gap = "1px";
-    grid.style.aspectRatio = "1 / 1";
+    grid.classList.add("unigram-grid");
 
-    // Map for quick lookup
+    const alphabet = "abcdefghijklmnopqrstuvwxyz";
+
+    // Simple aggregation: score of 'a' = avg score of patterns starting with 'a'
+    const charScores: Record<string, { total: number; count: number }> = {};
+    patterns.forEach((p) => {
+      const char = p.id[0];
+      if (!charScores[char]) charScores[char] = { total: 0, count: 0 };
+      charScores[char].total += p.score;
+      charScores[char].count++;
+    });
+
+    for (const char of alphabet) {
+      const node = document.createElement("div");
+      node.classList.add("unigram-node");
+      node.textContent = char.toUpperCase();
+
+      const data = charScores[char];
+      if (data && data.count > 0) {
+        const avgScore = data.total / data.count;
+        const clampedScore = Math.max(0, Math.min(300, avgScore));
+        const normalized = clampedScore / 300;
+        const hue = (1 - normalized) * 120;
+        node.style.backgroundColor = `hsl(${hue}, 80%, 35%)`;
+        node.style.color = "#fff";
+      }
+
+      grid.appendChild(node);
+    }
+    this.container.appendChild(grid);
+  }
+
+  private renderTrigram(patterns: ScoredPattern[]) {
+    this.container.classList.add("trigram-view");
+    const chart = document.createElement("div");
+    chart.classList.add("mastery-chart");
+
+    // Buckets: Volatile (<50), Uncertain (50-100), Stable (100-200), Mastered (>200)
+    // Note: Score metric might differ, using heuristic ranges for now.
+    const buckets = { Volatile: 0, Uncertain: 0, Stable: 0, Mastered: 0 };
+
+    patterns.forEach((p) => {
+      if (p.score < 0)
+        buckets.Mastered++; // Mastery penalty sends score negative
+      else if (p.score > 200) buckets.Volatile++;
+      else if (p.score > 100) buckets.Uncertain++;
+      else buckets.Stable++;
+    });
+
+    const maxVal = Math.max(...Object.values(buckets));
+
+    Object.entries(buckets).forEach(([label, count]) => {
+      const group = document.createElement("div");
+      group.classList.add("chart-bar-group");
+
+      const bar = document.createElement("div");
+      bar.classList.add("chart-bar");
+      // Height relative to max bucket for visual scaling
+      const height = maxVal > 0 ? (count / maxVal) * 100 : 0;
+      bar.style.height = `${Math.max(4, height)}%`; // Min height for visibility
+
+      // Color coding
+      if (label === "Volatile") bar.style.backgroundColor = "var(--accent-rose)";
+      if (label === "Uncertain") bar.style.backgroundColor = "var(--accent-yellow)"; // Use variable if available or blue
+      if (label === "Stable") bar.style.backgroundColor = "var(--accent-blue)";
+      if (label === "Mastered") bar.style.backgroundColor = "var(--accent-emerald)";
+
+      const lbl = document.createElement("span");
+      lbl.classList.add("chart-label");
+      lbl.textContent = label;
+
+      const val = document.createElement("span");
+      val.classList.add("chart-value");
+      val.style.fontSize = "0.7rem";
+      val.style.color = "var(--text-muted)";
+      val.textContent = count.toString();
+
+      group.appendChild(val);
+      group.appendChild(bar);
+      group.appendChild(lbl);
+      chart.appendChild(group);
+    });
+
+    this.container.appendChild(chart);
+  }
+
+  private renderBigram(patterns: ScoredPattern[]) {
+    // Satellite View Logic with Headers
+    this.container.classList.add("bigram-view");
+    const grid = document.createElement("div");
+    grid.classList.add("satellite-grid");
+
+    // Explicitly set grid template for headers + 26 columns
+    // We can do this in CSS, but dynamic columns are easier here if we want flexibility.
+    // However, CSS is cleaner. Let's rely on CSS updates for the grid layout
+    // (grid-template-columns: 14px repeat(26, 1fr)).
+
     const patternMap = new Map<string, ScoredPattern>();
     patterns.forEach((p) => {
       patternMap.set(p.id, p);
@@ -42,31 +128,40 @@ export class HeatmapRenderer {
 
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
 
+    // 1. Corner
+    const corner = document.createElement("div");
+    corner.classList.add("satellite-header"); // Re-use or new class
+    grid.appendChild(corner);
+
+    // 2. Top Headers
+    for (const char of alphabet) {
+      const header = document.createElement("div");
+      header.classList.add("satellite-header");
+      header.textContent = char.toUpperCase();
+      grid.appendChild(header);
+    }
+
+    // 3. Rows
     for (let i = 0; i < alphabet.length; i++) {
+      const char1 = alphabet[i];
+
+      // Left Header
+      const rowHeader = document.createElement("div");
+      rowHeader.classList.add("satellite-header");
+      rowHeader.textContent = char1.toUpperCase();
+      grid.appendChild(rowHeader);
+
+      // Cells
       for (let j = 0; j < alphabet.length; j++) {
-        const char1 = alphabet[i];
         const char2 = alphabet[j];
         const bigram = char1 + char2;
         const p = patternMap.get(bigram);
 
         const el = document.createElement("div");
-        el.textContent = bigram;
-        el.style.fontSize = "12px"; // Slightly smaller font to fit square cells
-        el.style.fontFamily = "monospace";
-        el.style.display = "flex";
-        el.style.alignItems = "center";
-        el.style.justifyContent = "center";
-        el.style.cursor = "default";
-        el.style.color = "#444"; // Default dim color
+        el.classList.add("satellite-node");
 
         if (p) {
-          el.title = `Score: ${p.score.toFixed(1)}
-Lat: ${Math.round(p.stat.ewmaLatency)}ms
-Var: ${Math.round(p.stat.ewmaVariance)}`;
-
-          el.style.color = "#fff"; // Visible text for active
-
-          // Color Map logic (Absolute Scale)
+          el.title = `${bigram}: ${Math.round(p.score)}`;
           const clampedScore = Math.max(0, Math.min(300, p.score));
           const normalized = clampedScore / 300;
           const hue = (1 - normalized) * 120;
@@ -76,37 +171,6 @@ Var: ${Math.round(p.stat.ewmaVariance)}`;
         grid.appendChild(el);
       }
     }
-
-    // Handle empty state (blurred background + message)
-    if (patterns.length === 0) {
-      grid.style.filter = "blur(4px)";
-      grid.style.opacity = "0.4";
-      grid.style.pointerEvents = "none"; // Disable tooltips on empty state
-
-      const overlay = document.createElement("div");
-      overlay.style.position = "absolute";
-      overlay.style.top = "0";
-      overlay.style.left = "0";
-      overlay.style.width = "100%";
-      overlay.style.height = "100%";
-      overlay.style.display = "flex";
-      overlay.style.alignItems = "center";
-      overlay.style.justifyContent = "center";
-      overlay.style.zIndex = "10";
-
-      const msg = document.createElement("div");
-      msg.textContent = "type to generate heatmap of patterns(not enough data)";
-      msg.style.color = "#eee";
-      msg.style.fontSize = "0.9rem";
-      msg.style.fontFamily = "sans-serif";
-      msg.style.background = "rgba(0, 0, 0, 0.6)";
-      msg.style.padding = "8px 16px";
-      msg.style.borderRadius = "4px";
-
-      overlay.appendChild(msg);
-      this.container.appendChild(overlay);
-    }
-
     this.container.appendChild(grid);
   }
 }

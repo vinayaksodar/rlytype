@@ -13,23 +13,7 @@ export class BatchRenderer {
 
   constructor(container: HTMLElement) {
     this.container = container;
-    this.initStyles();
-  }
-
-  private initStyles() {
-    this.container.style.display = "flex";
-    this.container.style.flexWrap = "wrap"; // Allow wrapping
-    this.container.style.alignItems = "flex-start"; // Top align for paragraph view
-    this.container.style.justifyContent = "center";
-    this.container.style.fontSize = "2.1rem";
-    this.container.style.fontFamily = '"Fira Code", monospace';
-    // this.container.style.overflow = 'hidden'; // Not strictly needed if we wrap
-    this.container.style.padding = "2rem";
-    this.container.style.background = "#1a1a1a";
-    this.container.style.color = "#e0e0e0";
-    this.container.style.width = "100%";
-    this.container.style.borderBottom = "2px solid #333";
-    this.container.style.boxSizing = "border-box";
+    // No inline styles. Relies on external CSS.
   }
 
   render(state: RenderState) {
@@ -49,37 +33,32 @@ export class BatchRenderer {
       const isActive = globalIndex === activeWordIndex;
 
       const wordDiv = document.createElement("div");
-      wordDiv.style.marginRight = "0";
-      wordDiv.style.marginBottom = "1.0rem"; // Spacing for wrapped lines
-      wordDiv.style.opacity = isActive ? "1" : globalIndex < activeWordIndex ? "0.3" : "0.6"; // Dim past words more
-      wordDiv.style.display = "inline-block";
+      wordDiv.classList.add("word");
+      if (isActive) wordDiv.classList.add("active");
+
+      // Dim past words (handled via CSS opacity if needed, or class)
+      if (globalIndex < activeWordIndex) wordDiv.classList.add("completed");
 
       w.word.split("").forEach((char, charIdx) => {
-        let color = "#e0e0e0";
-        let bg = "transparent";
+        const span = document.createElement("span");
+        span.textContent = char;
+        span.classList.add("char");
 
-        // Active Typing Feedback overrides
         if (isActive) {
           if (charIdx < activeCharIndex) {
             // Past chars
             const typedChar = typedSoFar[charIdx];
             if (typedChar === char) {
-              color = "#81c784"; // Green
+              span.classList.add("correct");
             } else {
-              color = "#e57373"; // Red
+              span.classList.add("incorrect");
             }
           } else if (charIdx === activeCharIndex) {
             // Cursor
-            bg = isError ? "#b71c1c" : "#424242";
-            if (isError) color = "#ffcdd2";
+            span.classList.add("cursor");
+            if (isError) span.classList.add("error");
           }
         }
-
-        const span = document.createElement("span");
-        span.textContent = char;
-        span.style.color = color;
-        span.style.backgroundColor = bg;
-        span.style.transition = "all 0.1s";
 
         wordDiv.appendChild(span);
       });
@@ -87,10 +66,11 @@ export class BatchRenderer {
       // Append space character
       const spaceSpan = document.createElement("span");
       spaceSpan.textContent = " ";
-      spaceSpan.style.whiteSpace = "pre";
-      spaceSpan.style.transition = "all 0.1s";
+      spaceSpan.classList.add("char");
+      // Space visualization logic if needed
       if (isActive && activeCharIndex === w.word.length) {
-        spaceSpan.style.backgroundColor = isError ? "#b71c1c" : "#424242";
+        spaceSpan.classList.add("cursor");
+        if (isError) spaceSpan.classList.add("error");
       }
       wordDiv.appendChild(spaceSpan);
 

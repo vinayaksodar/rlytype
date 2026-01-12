@@ -1,0 +1,44 @@
+:root {
+  /* Theme Colors */
+  --bg-main: #070708;
+  --bg-sidebar: #0c0c0e;
+  
+  /* Accents */
+  --accent-yellow: #EAB308;
+  --accent-rose: #F43F5E;
+  --accent-emerald: #10B981;
+  --accent-blue: #3b82f6;
+  
+  /* Text */
+  --text-main: #cbd5e1;
+  --text-muted: #64748b;
+  --text-highlight: #f8fafc;
+  
+  /* Borders & Surfaces */
+  --border-subtle: #1e293b;
+  --surface-panel: #111113;
+  
+  /* Metrics */
+  --sidebar-width: 300px;
+  --header-height: 60px;
+  --footer-height: 240px;
+  
+  /* Typography */
+  --font-mono: 'Fira Code', 'Roboto Mono', monospace;
+  --font-ui: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: var(--bg-main);
+  color: var(--text-main);
+  font-family: var(--font-ui);
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* No body scroll */
+  height: 100vh;
+  width: 100vw;
+}

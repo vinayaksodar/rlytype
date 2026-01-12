@@ -3,47 +3,199 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RlyType</title>
+    <title>RlyType | Adaptive Cockpit</title>
+    <link rel="stylesheet" href="/src/css/variables.css" />
+    <link rel="stylesheet" href="/src/css/layout.css" />
+    <link rel="stylesheet" href="/src/css/components.css" />
   </head>
-  <body
-    style="
-      background: #111;
-      color: #eee;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      min-height: 100vh;
-    "
-  >
-    <div id="heatmap-container"></div>
-    <div id="stream-container"></div>
-    <div id="stats-container"></div>
-    <div id="app"></div>
+  <body>
+    <div id="app-container">
+      <!-- SIDEBAR: Command Center -->
+      <aside id="sidebar">
+        <div class="sidebar-section">
+          <div class="sidebar-title">Engine Strategy</div>
+          <div class="segmented-control">
+            <div class="segmented-option active" data-value="reinforced">Reinforced</div>
+            <div class="segmented-option" data-value="sequential">Sequential</div>
+          </div>
+          <div class="strategy-info">
+            <p id="desc-reinforced" class="strategy-desc">
+              Bandit method targeting patterns for fastest overall growth.
+            </p>
+            <p id="desc-sequential" class="strategy-desc" style="display: none">
+              Focus on fixing your slowest bottlenecks first.
+            </p>
+          </div>
+        </div>
 
-    <footer style="margin-top: auto; padding: 1rem; text-align: center; opacity: 0.5">
-      <a
-        href="https://github.com/vinayaksodar/rlytype"
-        target="_blank"
-        style="
-          color: inherit;
-          text-decoration: none;
-          display: inline-flex;
-          align-items: center;
-          gap: 0.5rem;
-          transition: opacity 0.2s;
-        "
-        onmouseover="this.style.opacity = '1'"
-        onmouseout="this.style.opacity = '0.7'"
-      >
-        <svg height="20" width="20" viewBox="0 0 16 16" fill="currentColor">
-          <path
-            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"
-          ></path>
-        </svg>
-        <span style="font-family: sans-serif; font-size: 0.9rem">Star on GitHub</span>
-      </a>
-    </footer>
+        <div class="sidebar-section">
+          <div class="sidebar-title">Target Fluidity (fWPM)</div>
+          <div class="slider-container">
+            <input type="range" id="target-slider" min="40" max="150" value="80" />
+            <span class="slider-value" id="target-value">80</span>
+          </div>
+        </div>
+
+        <!-- Debug / Extra controls can go here -->
+      </aside>
+
+      <!-- MAIN CONTENT -->
+      <main id="main-stage">
+        <!-- HEADER -->
+        <header id="cockpit-header">
+          <!-- Sidebar Toggle (Visual Only for now) -->
+          <button
+            id="sidebar-toggle"
+            style="
+              position: absolute;
+              left: 1rem;
+              background: none;
+              border: none;
+              color: var(--text-muted);
+              cursor: pointer;
+            "
+          >
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M3 12h18M3 6h18M3 18h18" />
+            </svg>
+          </button>
+
+          <!-- Mode Selector -->
+          <div class="mode-selector">
+            <div class="mode-item active">
+              <span class="mode-label">Unigram</span>
+              <div class="mode-ring"></div>
+            </div>
+            <div class="mode-item">
+              <span class="mode-label">Bigram</span>
+              <div class="mode-ring"></div>
+            </div>
+            <div class="mode-item">
+              <span class="mode-label">Trigram</span>
+              <div class="mode-ring"></div>
+            </div>
+          </div>
+
+          <!-- Mastery Widget -->
+          <div class="mastery-widget">
+            <div class="mastery-info">
+              <span class="mastery-label" id="mastery-label">Mastery</span>
+              <span class="mastery-value" id="mastery-percent">0%</span>
+            </div>
+            <div class="mastery-track">
+              <div class="mastery-fill" id="mastery-bar" style="width: 0%"></div>
+            </div>
+          </div>
+        </header>
+
+        <!-- HERO STAGE -->
+        <section id="hero-stage">
+          <!-- Typing Stream -->
+          <div id="word-stream">
+            <!-- BatchRenderer will inject words here -->
+            <div style="opacity: 0.3">Initializing Engine...</div>
+          </div>
+
+                    <!-- Dynamic Stats Card -->
+
+                    <div id="stats-pill">
+
+                      <div class="stat-group">
+
+                        <span class="stat-label">Session fWPM</span>
+
+                        <span class="stat-value" id="stat-wpm">--</span>
+
+                      </div>
+
+                      <div class="stat-group">
+
+                        <span class="stat-label">Current Pattern</span>
+
+                        <span class="stat-value" id="stat-pattern">--</span>
+
+                      </div>
+
+                      <div class="stat-group">
+
+                        <span class="stat-label">Accuracy</span>
+
+                        <span class="stat-value" id="stat-acc">--</span>
+
+                      </div>
+
+                    </div>
+
+          
+        </section>
+
+        <!-- ADAPTIVE FOOTER -->
+
+        <footer id="adaptive-footer">
+          <!-- Footer Toggle -->
+          <button id="footer-toggle" title="Toggle Dashboard">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M6 9l6 6 6-6" />
+            </svg>
+          </button>
+
+          <div id="footer-content">
+            <!-- Box 1: Dynamic Visualizer -->
+
+            <div class="footer-panel">
+              <div class="footer-panel-header">
+                <div class="sidebar-title" style="margin: 0">Adaptive Visualizer</div>
+              </div>
+
+              <div id="visualizer-container" class="heatmap-container">
+                <!-- Satellite Grid will be rendered here -->
+              </div>
+            </div>
+
+            <!-- Box 2: Priority Queue -->
+
+            <div class="footer-panel">
+              <div class="footer-panel-header">
+                <div class="sidebar-title" style="margin: 0">Priority Queue</div>
+              </div>
+
+              <ul class="priority-list" id="priority-list">
+                <!-- Example Items -->
+
+                <li class="priority-item bottleneck">
+                  <span class="p-pattern">TH</span>
+
+                  <div class="p-stats">
+                    <div class="p-bar-bg"><div class="p-bar-fill" style="width: 45%"></div></div>
+
+                    <span class="status-badge bottleneck">Bottleneck</span>
+                  </div>
+                </li>
+
+                <li class="priority-item drilling">
+                  <span class="p-pattern">ING</span>
+
+                  <div class="p-stats">
+                    <div class="p-bar-bg"><div class="p-bar-fill" style="width: 72%"></div></div>
+
+                    <span class="status-badge drilling">Drilling</span>
+                  </div>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </footer>
+      </main>
+    </div>
+
+    <!-- Hidden containers for old renderers if needed, or we adapt them -->
 
     <script type="module" src="/src/main.ts"></script>
   </body>
