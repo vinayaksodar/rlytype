@@ -69,6 +69,7 @@ export class TypingEngine {
   // Batch Tracking
   private batchStartTime: number = 0;
   private batchCorrectChars: number = 0;
+  private batchTotalKeystrokes: number = 0;
   private isBatchStarted: boolean = false;
 
   // Global Stats for Auto-tuning
@@ -177,6 +178,7 @@ export class TypingEngine {
 
     this.batchStartTime = 0;
     this.batchCorrectChars = 0;
+    this.batchTotalKeystrokes = 0;
     this.isBatchStarted = false;
 
     this.generateMoreWords();
@@ -188,10 +190,6 @@ export class TypingEngine {
     if (!this.sessionStart) return;
     const now = Date.now();
     // WPM is now calculated per batch in checkBatchWpm() to avoid idle decay
-
-    if (this.totalKeystrokes > 0) {
-      this.state.stats.accuracy = Math.round((this.correctKeystrokes / this.totalKeystrokes) * 100);
-    }
 
     this.state.stats.sessionTime = Math.floor((now - this.sessionStart) / 1000);
     this.checkProgression(); // Check periodically
@@ -234,10 +232,18 @@ export class TypingEngine {
       const durationMin = (now - this.batchStartTime) / 60000;
       if (durationMin > 0) {
         this.state.stats.wpm = Math.round(this.batchCorrectChars / 5 / durationMin);
+
+        // Batch Accuracy
+        if (this.batchTotalKeystrokes > 0) {
+          this.state.stats.accuracy = Math.round(
+            (this.batchCorrectChars / this.batchTotalKeystrokes) * 100
+          );
+        }
       }
       // Reset for next batch
       this.batchStartTime = 0;
       this.batchCorrectChars = 0;
+      this.batchTotalKeystrokes = 0;
       this.isBatchStarted = false;
     }
   }
@@ -343,6 +349,7 @@ export class TypingEngine {
     const wordFinished = this.state.activeCharIndex === targetWord.length;
 
     this.totalKeystrokes++;
+    this.batchTotalKeystrokes++;
 
     if (wordFinished) {
       if (key === " ") {
