@@ -1,4 +1,12 @@
-import { WordCandidate, PatternStat, UserConfig, PatternId, BATCH_SIZE } from "@rlytype/types";
+import {
+  PatternStat,
+  UserConfig,
+  PatternId,
+  BATCH_SIZE,
+  EngineState,
+  Stage,
+  LearningMode,
+} from "@rlytype/types";
 import { WordIndexer, WordGenerator } from "@rlytype/generator";
 import { storage } from "@rlytype/storage";
 import {
@@ -8,22 +16,11 @@ import {
   getPatternScores,
   ScoredPattern,
   getFinger,
+  selectNextSequentialPattern,
+  getUnlockStatus,
+  calculateStageMastery,
+  getPatternStage,
 } from "@rlytype/core";
-
-export interface EngineState {
-  words: WordCandidate[];
-  activeWordIndex: number;
-  activeCharIndex: number;
-  typedSoFar: string;
-  isError: boolean;
-  stats: {
-    wpm: number;
-    accuracy: number; // Percentage
-    sessionTime: number; // Seconds
-    currentPattern: string; // ID of the pattern currently being targeted
-  };
-  isLoaded: boolean;
-}
 
 type Listener = (state: EngineState) => void;
 
@@ -34,7 +31,17 @@ export class TypingEngine {
     activeCharIndex: 0,
     typedSoFar: "",
     isError: false,
-    stats: { wpm: 0, accuracy: 100, sessionTime: 0, currentPattern: "" },
+    stats: { wpm: 0, accuracy: 100, sessionTime: 0, currentPattern: "", topBottleneck: "" },
+    progression: {
+      currentStage: "unigram",
+      learningMode: "reinforced",
+      mastery: { unigram: 0, bigram: 0, trigram: 0 },
+      isUnlocked: { unigram: true, bigram: false, trigram: false },
+      isStageFinished: false,
+    },
+    meta: {
+      targetWpm: 60, // Default derived from 200ms
+    },
     isLoaded: false,
   };
 
@@ -84,6 +91,16 @@ export class TypingEngine {
     const loadedStats = await storage.loadAllPatternStats();
     loadedStats.forEach((s) => this.patternStats.set(s.id, s));
 
+    const loadedConfig = await storage.loadConfig();
+    if (loadedConfig) {
+      this.config = { ...this.config, ...loadedConfig };
+      // Sync state meta
+      this.state.meta.targetWpm = Math.round(60000 / (this.config.targetLatency * 5));
+    }
+
+    // Initial Progression Check
+    this.checkProgression();
+
     // Generate initial batch
     this.generateMoreWords();
     this.updateCurrentPattern();
@@ -100,6 +117,59 @@ export class TypingEngine {
     }, 1000);
   }
 
+  // --- Public API for UI Control ---
+  setStage(stage: Stage) {
+    if (this.state.progression.isUnlocked[stage]) {
+      this.state.progression.currentStage = stage;
+
+      // If we haven't started typing the current word (or just finished one), replace it too!
+      if (this.state.activeCharIndex === 0) {
+        this.state.words = this.state.words.slice(0, this.state.activeWordIndex);
+      } else {
+        // Keep current word, replace subsequent
+        this.state.words = this.state.words.slice(0, this.state.activeWordIndex + 1);
+      }
+
+      this.generateMoreWords();
+      this.updateCurrentPattern(); // Force update display
+      this.notify();
+    }
+  }
+
+  setMode(mode: LearningMode) {
+    this.state.progression.learningMode = mode;
+    this.state.words = this.state.words.slice(0, this.state.activeWordIndex + 1);
+    this.generateMoreWords();
+    this.notify();
+  }
+
+  setTargetWpm(wpm: number) {
+    // 1 char = 5 keystrokes? No, standard is 5 chars/word.
+    // WPM = (Chars / 5) / Minutes
+    // Chars/Min = WPM * 5
+    // ms/Char = 60000 / (WPM * 5)
+    this.config.targetLatency = Math.round(60000 / (wpm * 5));
+    this.state.meta.targetWpm = wpm;
+
+    // Persist config
+    storage.saveConfig(this.config);
+
+    // Trigger re-eval of mastery
+    this.checkProgression();
+
+    // Enforce Stage Locking: Downgrade if current stage is no longer unlocked
+    if (!this.state.progression.isUnlocked[this.state.progression.currentStage]) {
+      if (this.state.progression.isUnlocked.bigram) {
+        this.setStage("bigram");
+      } else {
+        this.setStage("unigram");
+      }
+    }
+
+    this.notify();
+  }
+  // ---------------------------------
+
   private updateSessionStats() {
     if (!this.sessionStart) return;
     const now = Date.now();
@@ -110,7 +180,37 @@ export class TypingEngine {
     }
 
     this.state.stats.sessionTime = Math.floor((now - this.sessionStart) / 1000);
+    this.checkProgression(); // Check periodically
     this.notify();
+  }
+
+  private checkProgression() {
+    const stats = Array.from(this.patternStats.values());
+    const counts = this.indexer
+      ? this.indexer.getPatternCounts()
+      : { unigram: 26, bigram: 100, trigram: 100 };
+
+    const unlock = getUnlockStatus(stats, this.config.targetLatency, counts);
+    this.state.progression.isUnlocked = unlock;
+
+    this.state.progression.mastery.unigram = calculateStageMastery(
+      stats,
+      "unigram",
+      this.config.targetLatency,
+      counts.unigram
+    );
+    this.state.progression.mastery.bigram = calculateStageMastery(
+      stats,
+      "bigram",
+      this.config.targetLatency,
+      counts.bigram
+    );
+    this.state.progression.mastery.trigram = calculateStageMastery(
+      stats,
+      "trigram",
+      this.config.targetLatency,
+      counts.trigram
+    );
   }
 
   private checkBatchWpm() {
@@ -159,11 +259,37 @@ export class TypingEngine {
   private generateMoreWords() {
     if (!this.generator) return;
 
-    // Bandit logic
     const allStats = Array.from(this.patternStats.values());
-    // User Request: "for one set use only one pattern"
-    // We select the single top pattern (k=1)
-    const topPatterns = selectTopPatterns(allStats, this.config, 1);
+    let topPatterns: PatternId[] = [];
+
+    // Filter stats by current stage
+    const stageStats = allStats.filter(
+      (s) => getPatternStage(s.id) === this.state.progression.currentStage
+    );
+
+    // If stageStats is empty (new install?), we might need to seed it or just let it pick randomly?
+    // If empty, the generator won't be able to pick "Target Words". It will pick Flow Words.
+    // But as user types Flow Words, stats will be created.
+
+    if (this.state.progression.learningMode === "sequential") {
+      const p = selectNextSequentialPattern(
+        allStats,
+        this.state.progression.currentStage,
+        this.config.targetLatency
+      );
+      if (p) {
+        topPatterns = [p];
+        this.state.progression.isStageFinished = false;
+      } else {
+        // No patterns left to drill in this stage -> Stage Finished
+        this.state.progression.isStageFinished = true;
+      }
+    } else {
+      // Reinforced
+      // Use filtered stageStats
+      topPatterns = selectTopPatterns(stageStats, this.config, 1);
+      this.state.progression.isStageFinished = false; // Reinforced is never "finished", just maintenance
+    }
 
     const history = this.state.words.slice(-20).map((w) => w.word);
     const newBatch = this.generator.generateBatch(topPatterns, history, BATCH_SIZE);
@@ -242,13 +368,24 @@ export class TypingEngine {
           if (delta < 2000 && !this.latencyInvalidated) {
             // Update Global Average (Slow moving EWMA)
             this.globalAvgLatency = 0.005 * delta + (1 - 0.005) * this.globalAvgLatency;
-            this.config.targetLatency = Math.max(20, this.globalAvgLatency * 0.95);
+            // NOTE: We are NOT auto-updating targetLatency anymore based on globalAvg
+            // because the user now explicitly sets their target speed.
+            // this.config.targetLatency = Math.max(20, this.globalAvgLatency * 0.95);
 
             // Attribution: Bigram (Prev -> Curr)
             const prevChar = targetWord[this.state.activeCharIndex - 1];
             const patternId = prevChar + key; // Simple bigram for now
 
             this.updateStat(patternId, delta, false);
+
+            // Attribution: Unigram (Curr)
+            this.updateStat(key, delta, false);
+
+            // Attribution: Trigram (PrevPrev -> Prev -> Curr)
+            if (this.state.activeCharIndex > 1) {
+              const prevPrevChar = targetWord[this.state.activeCharIndex - 2];
+              this.updateStat(prevPrevChar + prevChar + key, delta, false);
+            }
 
             // Attribution: Same Finger
             const f1 = getFinger(prevChar);
@@ -257,6 +394,10 @@ export class TypingEngine {
               this.updateStat(`same_finger:${prevChar}${key}`, delta, false);
             }
           }
+        } else {
+          // It's the first char. We can still attribute Unigram stats for it?
+          // No, "Startup Latency" is reading time. Unigram speed should be motor speed.
+          // So we only count unigrams inside words.
         }
 
         this.state.typedSoFar += key;
@@ -276,10 +417,12 @@ export class TypingEngine {
         this.latencyInvalidated = true; // Mark latency as garbage for when they finally get it right
 
         // Attribution
+        // For Unigram/Bigram/Trigram errors
         if (this.state.activeCharIndex > 0) {
           const prevChar = targetWord[this.state.activeCharIndex - 1];
           const patternId = prevChar + targetChar;
           this.updateStat(patternId, 0, true);
+          this.updateStat(targetChar, 0, true); // Unigram error
 
           // Attribution: Same Finger Error
           const f1 = getFinger(prevChar);

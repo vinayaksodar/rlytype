@@ -1,4 +1,6 @@
 export type PatternId = string; // e.g. "th" or "ing" or "same_finger:jk"
+export type Stage = "unigram" | "bigram" | "trigram";
+export type LearningMode = "reinforced" | "sequential";
 
 export const BATCH_SIZE = 10;
 
@@ -18,6 +20,32 @@ export interface WordCandidate {
   // Specific patterns this word was chosen to target
   targetMatches: Array<{ pattern: PatternId; startIndex: number }>;
   isFlowWord: boolean; // True if this is a "palate cleanser" word
+}
+
+export interface EngineState {
+  words: WordCandidate[];
+  activeWordIndex: number;
+  activeCharIndex: number;
+  typedSoFar: string;
+  isError: boolean;
+  stats: {
+    wpm: number;
+    accuracy: number;
+    sessionTime: number;
+    topBottleneck: string;
+    currentPattern: string;
+  };
+  progression: {
+    currentStage: Stage;
+    learningMode: LearningMode;
+    mastery: Record<Stage, number>; // 0-100 percentage
+    isUnlocked: Record<Stage, boolean>;
+    isStageFinished: boolean;
+  };
+  meta: {
+    targetWpm: number;
+  };
+  isLoaded: boolean;
 }
 
 export interface UserConfig {

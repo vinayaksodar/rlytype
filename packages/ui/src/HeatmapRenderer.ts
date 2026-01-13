@@ -7,6 +7,38 @@ export class HeatmapRenderer {
     this.container = container;
   }
 
+  // Color Scale: Emerald -> Yellow -> Rose
+  private getModernColor(score: number): string {
+    const clamped = Math.max(0, Math.min(300, score));
+    const t = clamped / 300;
+
+    const stops = [
+      { t: 0.0, r: 16, g: 185, b: 129 }, // --accent-emerald (Mastered)
+      { t: 0.5, r: 234, g: 179, b: 8 }, // --accent-yellow (Slow)
+      { t: 1.0, r: 244, g: 63, b: 94 }, // --accent-rose (Urgent)
+    ];
+
+    let lower = stops[0];
+    let upper = stops[stops.length - 1];
+
+    for (let i = 0; i < stops.length - 1; i++) {
+      if (t >= stops[i].t && t <= stops[i + 1].t) {
+        lower = stops[i];
+        upper = stops[i + 1];
+        break;
+      }
+    }
+
+    const range = upper.t - lower.t;
+    const factor = range === 0 ? 0 : (t - lower.t) / range;
+
+    const r = Math.round(lower.r + (upper.r - lower.r) * factor);
+    const g = Math.round(lower.g + (upper.g - lower.g) * factor);
+    const b = Math.round(lower.b + (upper.b - lower.b) * factor);
+
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+
   render(patterns: ScoredPattern[], mode: string = "Bigram") {
     this.container.innerHTML = "";
     this.container.className = "heatmap-container"; // Reset classes
@@ -26,28 +58,36 @@ export class HeatmapRenderer {
     grid.classList.add("unigram-grid");
 
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
+    const charScores: Record<string, number> = {};
 
-    // Simple aggregation: score of 'a' = avg score of patterns starting with 'a'
-    const charScores: Record<string, { total: number; count: number }> = {};
-    patterns.forEach((p) => {
-      const char = p.id[0];
-      if (!charScores[char]) charScores[char] = { total: 0, count: 0 };
-      charScores[char].total += p.score;
-      charScores[char].count++;
-    });
+    // Check if we have explicit unigram stats (length === 1)
+    const explicitUnigrams = patterns.filter((p) => p.id.length === 1);
+
+    if (explicitUnigrams.length > 0) {
+      explicitUnigrams.forEach((p) => {
+        charScores[p.id] = p.score;
+      });
+    } else {
+      // Fallback: Aggregation from Bigrams
+      const aggregates: Record<string, { total: number; count: number }> = {};
+      patterns.forEach((p) => {
+        const char = p.id[0];
+        if (!aggregates[char]) aggregates[char] = { total: 0, count: 0 };
+        aggregates[char].total += p.score;
+        aggregates[char].count++;
+      });
+      Object.entries(aggregates).forEach(([char, data]) => {
+        charScores[char] = data.total / data.count;
+      });
+    }
 
     for (const char of alphabet) {
       const node = document.createElement("div");
       node.classList.add("unigram-node");
       node.textContent = char.toUpperCase();
 
-      const data = charScores[char];
-      if (data && data.count > 0) {
-        const avgScore = data.total / data.count;
-        const clampedScore = Math.max(0, Math.min(300, avgScore));
-        const normalized = clampedScore / 300;
-        const hue = (1 - normalized) * 120;
-        node.style.backgroundColor = `hsl(${hue}, 80%, 35%)`;
+      if (charScores[char] !== undefined) {
+        node.style.backgroundColor = this.getModernColor(charScores[char]);
         node.style.color = "#fff";
       }
 
@@ -85,11 +125,11 @@ export class HeatmapRenderer {
       const height = maxVal > 0 ? (count / maxVal) * 100 : 0;
       bar.style.height = `${Math.max(4, height)}%`; // Min height for visibility
 
-      // Color coding
-      if (label === "Volatile") bar.style.backgroundColor = "var(--accent-rose)";
-      if (label === "Uncertain") bar.style.backgroundColor = "var(--accent-yellow)"; // Use variable if available or blue
-      if (label === "Stable") bar.style.backgroundColor = "var(--accent-blue)";
-      if (label === "Mastered") bar.style.backgroundColor = "var(--accent-emerald)";
+      // Color coding - Using simplified brand scale
+      if (label === "Volatile") bar.style.backgroundColor = "rgb(244, 63, 94)"; // --accent-rose
+      if (label === "Uncertain") bar.style.backgroundColor = "rgb(234, 179, 8)"; // --accent-yellow
+      if (label === "Stable") bar.style.backgroundColor = "rgb(16, 185, 129)"; // --accent-emerald
+      if (label === "Mastered") bar.style.backgroundColor = "rgb(16, 185, 129)"; // --accent-emerald
 
       const lbl = document.createElement("span");
       lbl.classList.add("chart-label");
@@ -116,11 +156,6 @@ export class HeatmapRenderer {
     const grid = document.createElement("div");
     grid.classList.add("satellite-grid");
 
-    // Explicitly set grid template for headers + 26 columns
-    // We can do this in CSS, but dynamic columns are easier here if we want flexibility.
-    // However, CSS is cleaner. Let's rely on CSS updates for the grid layout
-    // (grid-template-columns: 14px repeat(26, 1fr)).
-
     const patternMap = new Map<string, ScoredPattern>();
     patterns.forEach((p) => {
       patternMap.set(p.id, p);
@@ -130,7 +165,7 @@ export class HeatmapRenderer {
 
     // 1. Corner
     const corner = document.createElement("div");
-    corner.classList.add("satellite-header"); // Re-use or new class
+    corner.classList.add("satellite-header");
     grid.appendChild(corner);
 
     // 2. Top Headers
@@ -162,10 +197,7 @@ export class HeatmapRenderer {
 
         if (p) {
           el.title = `${bigram}: ${Math.round(p.score)}`;
-          const clampedScore = Math.max(0, Math.min(300, p.score));
-          const normalized = clampedScore / 300;
-          const hue = (1 - normalized) * 120;
-          el.style.backgroundColor = `hsl(${hue}, 80%, 35%)`;
+          el.style.backgroundColor = this.getModernColor(p.score);
         }
 
         grid.appendChild(el);

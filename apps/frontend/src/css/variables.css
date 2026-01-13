@@ -1,7 +1,7 @@
 :root {
-  /* Theme Colors */
-  --bg-main: #070708;
-  --bg-sidebar: #0c0c0e;
+  /* Theme Colors (Deep Zinc/Slate) */
+  --bg-main: #09090b;
+  --bg-sidebar: #121215;
   
   /* Accents */
   --accent-yellow: #EAB308;
@@ -15,8 +15,8 @@
   --text-highlight: #f8fafc;
   
   /* Borders & Surfaces */
-  --border-subtle: #1e293b;
-  --surface-panel: #111113;
+  --border-subtle: #27272a;
+  --surface-panel: #18181b;
   
   /* Metrics */
   --sidebar-width: 300px;

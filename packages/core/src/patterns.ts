@@ -39,14 +39,19 @@ export function extractPatternsForWord(word: string): PatternId[] {
   const patterns: PatternId[] = [];
   const lower = word.toLowerCase();
 
+  // 1. Unigrams
+  for (let i = 0; i < lower.length; i++) {
+    patterns.push(lower[i]);
+  }
+
   for (let i = 0; i < lower.length - 1; i++) {
     const c1 = lower[i];
     const c2 = lower[i + 1];
 
-    // 1. Bigram
+    // 2. Bigram
     patterns.push(c1 + c2);
 
-    // 2. Same Finger (Heuristic)
+    // 3. Same Finger (Heuristic)
     const f1 = getFinger(c1);
     const f2 = getFinger(c2);
 
@@ -54,7 +59,7 @@ export function extractPatternsForWord(word: string): PatternId[] {
       patterns.push(`same_finger:${c1}${c2}`);
     }
 
-    // 3. Trigram (if available)
+    // 4. Trigram (if available)
     if (i < lower.length - 2) {
       const c3 = lower[i + 2];
       patterns.push(c1 + c2 + c3);

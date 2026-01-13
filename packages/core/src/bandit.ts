@@ -1,4 +1,5 @@
-import { PatternStat, UserConfig, PatternId } from "@rlytype/types";
+import { PatternStat, UserConfig, PatternId, Stage } from "@rlytype/types";
+import { getPatternStage } from "./progression";
 
 // Box-Muller transform for normal distribution sampling
 function sampleNormal(mean: number, variance: number): number {
@@ -16,10 +17,29 @@ function timeBoostFunc(deltaMs: number): number {
 
 const LOW_VAR_THRESHOLD = 400; // ms^2, implies std dev 20ms
 
+export function isPatternMastered(p: PatternStat, targetLatency: number): boolean {
+  const totalEvidence = p.errorAlpha + p.errorBeta;
+  const successRate = p.errorAlpha / totalEvidence;
+
+  // Criteria:
+  // 1. Enough samples (> 10)
+  // 2. High Success Rate (> 98%)
+  // 3. Stable (Low Variance)
+  // 4. Fast (EWMA Latency <= Target) -- Added this check explicitly for helper utility
+
+  return (
+    totalEvidence > 10 &&
+    successRate > 0.98 &&
+    p.ewmaVariance < LOW_VAR_THRESHOLD &&
+    p.ewmaLatency <= targetLatency
+  );
+}
+
 export function calculatePatternScore(
   p: PatternStat,
   config: UserConfig,
-  deterministic = false
+  deterministic = false,
+  includeTimeBoost = true
 ): number {
   const sampleLatency = deterministic ? p.ewmaLatency : sampleNormal(p.ewmaLatency, p.ewmaVariance);
 
@@ -34,18 +54,17 @@ export function calculatePatternScore(
   const gap = Math.max(0, adjustedLatency - config.targetLatency);
 
   // 4. Time Decay
-  const timeBoost = timeBoostFunc(Date.now() - p.lastSeen);
+  const timeBoost = includeTimeBoost ? timeBoostFunc(Date.now() - p.lastSeen) : 0;
 
   // 5. Mastery Detection
-  // Confident (low variance) and High Success Rate
+  // We use the helper but ignore the specific latency check here because 'Gap' handles the latency component of the score.
+  // The penalty is specifically for "Confident + Stable + High Accuracy".
   const totalEvidence = p.errorAlpha + p.errorBeta;
   const successRate = p.errorAlpha / totalEvidence;
-  const isMastered =
-    totalEvidence > 10 &&
-    successRate > 0.98 && // < 2% error
-    p.ewmaVariance < LOW_VAR_THRESHOLD;
+  const isMasteredStable =
+    totalEvidence > 10 && successRate > 0.98 && p.ewmaVariance < LOW_VAR_THRESHOLD;
 
-  const masteryPenalty = isMastered ? 1000 : 0;
+  const masteryPenalty = isMasteredStable ? 1000 : 0;
 
   const errorRate = p.errorBeta / (p.errorAlpha + p.errorBeta);
 
@@ -61,13 +80,38 @@ export function calculatePatternScore(
 export function selectTopPatterns(allStats: PatternStat[], config: UserConfig, k = 3): PatternId[] {
   const candidates = allStats.map((p) => ({
     id: p.id,
-    score: calculatePatternScore(p, config, false), // Use stochastic for selection
+    score: calculatePatternScore(p, config, false, true), // Bandit selection REQUIRES time boost
   }));
 
   // Sort descending
   candidates.sort((a, b) => b.score - a.score);
 
   return candidates.slice(0, k).map((c) => c.id);
+}
+
+export function selectNextSequentialPattern(
+  allStats: PatternStat[],
+  stage: Stage,
+  targetLatency: number
+): PatternId | null {
+  // Filter by stage
+  const stageStats = allStats.filter((s) => getPatternStage(s.id) === stage);
+
+  // Filter those that are NOT mastered
+  // We drill anything that fails the robust mastery check
+  const candidates = stageStats.filter((s) => !isPatternMastered(s, targetLatency));
+
+  if (candidates.length === 0) return null;
+
+  // Sort by "Worst" first (Highest Latency)
+  candidates.sort((a, b) => {
+    // Sequential mode typically ignores time boost because it's a "fix-it" mode
+    const gapA = a.ewmaLatency - targetLatency;
+    const gapB = b.ewmaLatency - targetLatency;
+    return gapB - gapA; // Descending
+  });
+
+  return candidates[0].id;
 }
 
 export interface ScoredPattern {
@@ -79,11 +123,12 @@ export interface ScoredPattern {
 export function getPatternScores(
   allStats: PatternStat[],
   config: UserConfig,
-  deterministic = true
+  deterministic = true,
+  includeTimeBoost = false // Default to false for visualizers
 ): ScoredPattern[] {
   const candidates = allStats.map((p) => ({
     id: p.id,
-    score: calculatePatternScore(p, config, deterministic),
+    score: calculatePatternScore(p, config, deterministic, includeTimeBoost),
     stat: p,
   }));
   candidates.sort((a, b) => b.score - a.score);

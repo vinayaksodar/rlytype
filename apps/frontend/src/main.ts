@@ -1,7 +1,7 @@
 import { inject } from "@vercel/analytics";
 import { engine } from "./engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
-import { BATCH_SIZE } from "@rlytype/types";
+import { BATCH_SIZE, Stage, LearningMode } from "@rlytype/types";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -33,6 +33,8 @@ const masteryBarEl = document.getElementById("mastery-bar")!;
 
 // --- Initialization ---
 
+const formatPattern = (id: string) => id.replace("same_finger:", "");
+
 // 1. Renderers
 const renderer = new BatchRenderer(wordStreamEl);
 // Re-use HeatmapRenderer for the Visualizer box
@@ -41,42 +43,30 @@ const heatmapRenderer = new HeatmapRenderer(visualizerContainer);
 
 // 2. UI State
 let lastPage = -1;
+let lastTargetWpm = -1;
+let lastStage: Stage | null = null;
 let targetWpm = 80; // Default
-let currentMode = "Unigram";
 
 // Initialize UI with defaults
 targetSlider.value = targetWpm.toString();
-updateMasteryDisplay();
+engine.setTargetWpm(targetWpm);
 
 // --- Interaction Handlers ---
 
-// Mode Selector
+// Mode Selector (Unigram/Bigram/Trigram)
 modeItems.forEach((item) => {
   item.addEventListener("click", () => {
-    // 1. UI Update
-    modeItems.forEach((el) => el.classList.remove("active"));
-    item.classList.add("active");
-
-    // 2. State Update
-    const label = item.querySelector(".mode-label")?.textContent;
+    const label = item.querySelector(".mode-label")?.textContent?.toLowerCase();
     if (label) {
-      currentMode = label;
-      console.log("Mode switched to:", currentMode);
-      updateMasteryDisplay();
-
-      // Trigger Visualizer update
-      heatmapRenderer.render(engine.getPatternHeatmapData(), currentMode);
+      engine.setStage(label as Stage);
     }
   });
 });
 
-function updateMasteryDisplay() {
-  // Label is static "Mastery" now
-  // Mock data for now
-  const percent = 0;
-  masteryPercentEl.textContent = `${percent}%`;
-  masteryBarEl.style.width = `${percent}%`;
-}
+// Sidebar Toggle
+sidebarToggle.addEventListener("click", () => {
+  sidebar.classList.toggle("collapsed");
+});
 
 // Footer Toggle
 footerToggleBtn.addEventListener("click", () => {
@@ -91,26 +81,11 @@ footerToggleBtn.addEventListener("click", () => {
   }
 });
 
-// Sidebar Toggle
-sidebarToggle.addEventListener("click", () => {
-  sidebar.classList.toggle("collapsed");
-});
-
-// Strategy Selector
+// Strategy Selector (Reinforced/Sequential)
 strategyOptions.forEach((option) => {
   option.addEventListener("click", () => {
-    strategyOptions.forEach((el) => el.classList.remove("active"));
-    option.classList.add("active");
-
-    const strategy = (option as HTMLElement).dataset.value;
-    if (strategy === "reinforced") {
-      descReinforced.style.display = "block";
-      descSequential.style.display = "none";
-    } else {
-      descReinforced.style.display = "none";
-      descSequential.style.display = "block";
-    }
-    console.log("Strategy switched to:", strategy);
+    const strategy = (option as HTMLElement).dataset.value as LearningMode;
+    engine.setMode(strategy);
   });
 });
 
@@ -119,12 +94,12 @@ targetSlider.addEventListener("input", (e) => {
   const val = (e.target as HTMLInputElement).value;
   targetValueDisplay.textContent = val;
   targetWpm = parseInt(val, 10);
-  // TODO: Update engine config if exposed
+  engine.setTargetWpm(targetWpm);
 });
 
 // --- Engine Subscription ---
 
-// Loading indicator (temp overlay or just text in stream)
+// Loading indicator
 const loadingMsg = document.createElement("div");
 loadingMsg.style.opacity = "0.5";
 loadingMsg.textContent = "Loading Dictionary...";
@@ -142,69 +117,165 @@ engine.subscribe((state) => {
   const wpm = state.stats.wpm;
   statsWpmEl.textContent = wpm.toString();
   statsAccEl.textContent = state.stats.accuracy + "%";
-  statsPatternEl.textContent = state.stats.currentPattern || "--";
 
-  // 3. Update Heatmap (Page-based to reduce jitter)
+  // Sync Slider (One-way binding from state to UI to respect loaded config)
+  // Check if value differs to avoid loop (though input event drives the other way)
+  if (parseInt(targetSlider.value, 10) !== state.meta.targetWpm) {
+    targetSlider.value = state.meta.targetWpm.toString();
+    targetValueDisplay.textContent = state.meta.targetWpm.toString();
+    targetWpm = state.meta.targetWpm; // Sync local var
+  }
+
+  if (state.progression.isStageFinished) {
+    statsPatternEl.textContent = "Stage Cleared";
+    statsPatternEl.style.color = "var(--accent-emerald)";
+    statsPatternEl.style.fontWeight = "bold";
+  } else {
+    statsPatternEl.textContent = formatPattern(state.stats.currentPattern || "--");
+    statsPatternEl.style.color = ""; // Reset
+    statsPatternEl.style.fontWeight = "";
+  }
+
+  // 3. Update Mastery Widget
+  const currentStage = state.progression.currentStage;
+  const mastery = state.progression.mastery[currentStage];
+  masteryPercentEl.textContent = `${mastery}%`;
+  masteryBarEl.style.width = `${mastery}%`;
+
+  // 4. Update Mode Selectors (Locking & Active)
+  modeItems.forEach((item) => {
+    const label = item.querySelector(".mode-label")?.textContent?.toLowerCase() as Stage;
+    if (!label) return;
+
+    // Active State
+    if (label === currentStage) {
+      item.classList.add("active");
+    } else {
+      item.classList.remove("active");
+    }
+
+    // Locked State
+    const isUnlocked = state.progression.isUnlocked[label];
+    const el = item as HTMLElement;
+    if (!isUnlocked) {
+      el.classList.add("locked");
+      el.style.cursor = "not-allowed";
+
+      // Explicit Tooltip logic
+      if (label === "bigram") {
+        el.setAttribute("data-tooltip", "Unlock Bigrams by mastering 85% of Unigrams");
+      } else if (label === "trigram") {
+        el.setAttribute("data-tooltip", "Unlock Trigrams by mastering 85% of Bigrams");
+      }
+    } else {
+      el.classList.remove("locked");
+      el.style.cursor = "pointer";
+      el.removeAttribute("data-tooltip");
+    }
+    // Remove inline opacity to let CSS handle partial dimming
+    el.style.opacity = "";
+  });
+
+  // 5. Update Strategy UI
+  strategyOptions.forEach((opt) => {
+    const val = (opt as HTMLElement).dataset.value;
+    if (val === state.progression.learningMode) {
+      opt.classList.add("active");
+      if (val === "reinforced") {
+        descReinforced.style.display = "block";
+        descSequential.style.display = "none";
+      } else {
+        descReinforced.style.display = "none";
+        descSequential.style.display = "block";
+      }
+    } else {
+      opt.classList.remove("active");
+    }
+  });
+
+  // 6. Update Heatmap (Page-based to reduce jitter OR when target fluidity or stage changes)
   const currentPage = Math.floor(state.activeWordIndex / BATCH_SIZE);
-  if (currentPage !== lastPage) {
-    // Standard Satellite View (respecting mode)
-    heatmapRenderer.render(engine.getPatternHeatmapData(), currentMode);
+  if (
+    currentPage !== lastPage ||
+    state.meta.targetWpm !== lastTargetWpm ||
+    state.progression.currentStage !== lastStage
+  ) {
+    // Capitalize for renderer
+    const modeCap = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
+    heatmapRenderer.render(engine.getPatternHeatmapData(), modeCap);
 
     lastPage = currentPage;
+    lastTargetWpm = state.meta.targetWpm;
+    lastStage = state.progression.currentStage;
 
-    // Update Priority Queue
-    updatePriorityQueue();
+    // Update Mastery Queue
+    updateMasteryQueue();
   }
 });
 
-// Mock Priority Queue Update (until engine exposes it)
-function updatePriorityQueue() {
+// Mock Priority Queue Update
+function updateMasteryQueue() {
   if (!priorityListEl) return;
 
-  // Get all patterns sorted by score (descending)
-  const patterns = engine.getPatternHeatmapData();
-  // patterns are already sorted by getPatternScores
+  const currentStage =
+    (document
+      .querySelector(".mode-item.active .mode-label")
+      ?.textContent?.toLowerCase() as Stage) || "unigram";
 
   priorityListEl.innerHTML = "";
 
-  patterns.forEach((p) => {
+  if (
+    engine["state"].progression.isStageFinished &&
+    currentStage === engine["state"].progression.currentStage
+  ) {
+    priorityListEl.innerHTML = `<li class="priority-item" style="justify-content:center; color:var(--text-muted); padding: 1rem; text-align:center;">
+
+          <div>
+
+            <div style="font-weight:600; color:var(--accent-emerald); margin-bottom:0.25rem;">Stage Cleared!</div>
+
+            <div style="font-size:0.8rem;">Maintenance Mode Active</div>
+
+          </div>
+
+        </li>`;
+
+    return;
+  }
+
+  const patterns = engine.getPatternHeatmapData();
+
+  // Filter patterns by stage (rudimentary check on ID length)
+  const relevantPatterns = patterns.filter((p) => {
+    if (currentStage === "unigram") return p.id.length === 1;
+    if (currentStage === "bigram") return p.id.length === 2 || p.id.startsWith("same_finger:");
+    if (currentStage === "trigram") return p.id.length === 3;
+    return false;
+  });
+
+  // 2. Map patterns to mastery values for sorting and rendering
+  const targetLatency = 60000 / (targetWpm * 5);
+  const patternMastery = relevantPatterns.map((p) => {
+    const totalSamples = p.stat.errorAlpha + p.stat.errorBeta;
+    const accuracy = totalSamples > 0 ? p.stat.errorAlpha / totalSamples : 1;
+    const speedFactor = Math.min(1, targetLatency / Math.max(1, p.stat.ewmaLatency));
+    const mastery = Math.round(speedFactor * accuracy * 100);
+
+    return { ...p, mastery, accuracy };
+  });
+
+  // 3. Sort by Mastery Ascending (Worst mastery at top)
+  patternMastery.sort((a, b) => a.mastery - b.mastery);
+
+  patternMastery.slice(0, 8).forEach((p) => {
     const li = document.createElement("li");
     li.classList.add("priority-item");
 
-    // Determine Status
-    let statusClass = "";
-    let statusText = "";
-    const errorRate = p.stat.errorBeta / (p.stat.errorAlpha + p.stat.errorBeta);
-
-    if (errorRate > 0.1) {
-      statusClass = "bottleneck";
-      statusText = "Bottleneck";
-    } else if (p.score > 50) {
-      statusClass = "drilling";
-      statusText = "Drilling";
-    } else if (p.score < 0) {
-      statusClass = "mastered";
-      statusText = "Mastered";
-    } else {
-      // Neutral/Queued - maybe no badge or just text
-      statusText = "Queued";
-    }
-
-    if (statusClass) li.classList.add(statusClass);
-
-    // Fluidity Calculation: Target / Current
-    // We don't have direct access to config.targetLatency here easily unless we export it or infer it.
-    // Let's assume ~200ms or infer from score?
-    // Actually, let's use a rough heuristic: 100ms is master speed (100%), 500ms is 20%.
-    // Better: 200ms / p.stat.ewmaLatency.
-    // If ewma is 200, fluidity is 100%. If 400, 50%.
-    const fluidity = Math.min(100, Math.round((200 / Math.max(1, p.stat.ewmaLatency)) * 100));
-
     li.innerHTML = `
-        <span class="p-pattern">${p.id}</span>
+        <span class="p-pattern">${formatPattern(p.id)}</span>
         <div class="p-stats">
-          <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${fluidity}%"></div></div>
-          ${statusText !== "Queued" ? `<span class="status-badge ${statusClass}">${statusText}</span>` : `<span style="font-size:0.65rem; color:#666; text-transform:uppercase; font-weight:600;">${statusText}</span>`}
+          <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
+          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
         </div>
     `;
 
@@ -216,15 +287,10 @@ function updatePriorityQueue() {
 engine.init();
 
 // --- Global Key Listener ---
-
 window.addEventListener("keydown", (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-
   if (e.key.length === 1 || e.key === "Backspace") {
-    // Prevent default scrolling for Space
-
     if (e.key === " ") e.preventDefault();
-
     engine.handleKey(e.key);
   }
 });

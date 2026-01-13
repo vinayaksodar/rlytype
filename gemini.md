@@ -1,3 +1,24 @@
+## Gemini Added Memories
+
+- Implemented RlyType 'Cockpit' UI: Dashboard layout, CSS variables, Sidebar/Header/Footer components, and refactored renderers to use CSS classes.
+- Implemented Adaptive Dashboard footer with Satellite View and Priority Queue. Added Fullscreen Matrix Modal with sticky headers. Updated HeatmapRenderer to support both rendering modes.
+- Refactored Stats Pill: Replaced 'Target Delta' and 'Reset' with 'Current Pattern'. Restored `targetWpm` to initialize slider state.
+- Simplified Mastery Widget: Static 'Mastery' label. Removed dynamic label logic. Cleaned up unused TS variables.
+- Unified color scheme: **Transitioned to 'Yellow Theme' (Deep Zinc + Accent Yellow)**.
+  - Updated range slider shadow to use `accent-yellow`.
+  - Updated drilling status badge to use `accent-yellow`.
+  - Updated cursor style to use `accent-yellow` tint and shadow.
+- Updated Priority Queue: Shows full scrollable list of patterns sorted by score. Implemented logic for Bottleneck/Drilling/Mastered badges and Fluidity bar.
+- Implemented custom dark scrollbar styles in layout.css to match application theme.
+- Implemented dynamic Adaptive Visualizer: Unigram (Key Grid), Bigram (Satellite Grid), Trigram (Mastery Bar Chart). Added scrolling and fit-width styles.
+- Enhanced Bigram Visualizer: Added A-Z row/column headers. Styled nodes as 85% squircles. Updated grid layout to 27x27.
+- Implemented Sticky Headers for Bigram Heatmap: Top row and left column labels now stay pinned during scrolling using CSS sticky positioning.
+- Removed 'Expanded View' feature: Deleted Fullscreen Matrix Modal, Expand button, and associated CSS/JS logic.
+- Implemented footer toggle logic: Added collapse button, CSS height transition, and event handling. Restored missing JS variable declarations.
+- **Implemented Stage Enforcement:** Added logic in `engine.ts` to automatically downgrade the user to an unlocked stage (Bigram/Unigram) if the current stage becomes locked due to increased Target WPM.
+
+---
+
 # Typing Tutor — LLM Agent Implementation Plan
 
 **Purpose:** This markdown describes a complete implementation plan for a client-side adaptive typing tutor engine using a turborepo monorepo, Vite for the frontend app, plain HTML/CSS/TypeScript for the engine UI, and a small shared core library implementing pattern extraction, statistics, and a Thompson-Sampling bandit. The LLM agent will use this plan to generate code, tests, and scaffolding.
@@ -352,10 +373,13 @@ function selectTopPatterns(allStats: PatternStat[], k = 3) {
 - [x] **Feature:** Biomechanical Leniancy (15% discount for same-finger jumps).
 - [x] **Refinement:** Heatmap Absolute Scaling (Fixed color thresholds).
 - [x] **Refinement:** Batch-based WPM Calculation (No idle decay).
+- [x] **Feature:** **Progression System** (Unigram -> Bigram -> Trigram unlocking).
+- [x] **Feature:** **Sequential Drill Mode** (Target specific patterns linearly).
+- [x] **UI:** **Adaptive Dashboard** (Satellite Grid for Bigrams, Priority Queue list).
+- [x] **UI:** **Unified Yellow Theme** (Yellow accents for sliders, badges, cursors).
 
 ### Pending / Next Steps
 
-- [ ] User Settings UI (to toggle Focus Mode, set Target Latency).
 - [ ] Unit Tests (Vitest) for Core logic.
 - [ ] Offline PWA capability (Service Worker).
 
@@ -376,3 +400,75 @@ function selectTopPatterns(allStats: PatternStat[], k = 3) {
 - [x] Generator never outputs nonsense (unless in explicit "Drill Mode").
 - [x] "Startup Latency" (first char) is successfully ignored in stats.
 - [x] UI displays words in batches (Page View).
+
+---
+
+## 18. New Feature: Progression & Modes
+
+**Goal:** Implement a structured learning path (Unigram -> Bigram -> Trigram) and a specialized "Sequential" drill mode.
+
+### Requirements
+
+1.  **Pattern Types:**
+    - **Unigrams:** Single characters (a, b, c...).
+    - **Bigrams:** Two characters (th, he, in...).
+    - **Trigrams:** Three characters (the, ing, ion...).
+2.  **Progression System (Unlock Logic):**
+    - Users start at **Unigram** stage.
+    - **Unlock Condition:** 85% of patterns in the current stage must meet the `Target Latency` (derived from user's goal WPM).
+    - Bigrams unlock only after Unigrams are 85% mastered.
+    - Trigrams unlock only after Bigrams are 85% mastered.
+3.  **Modes:**
+    - **Reinforced (Default):** The existing Bandit algorithm (Weighted exploration/exploitation).
+    - **Sequential:** "Fix-it" mode. Identifies the _single slowest_ pattern in the current active stage and drills it exclusively until it meets the target. Then moves to the next slowest.
+
+### Implementation Tasks
+
+#### Packages/Core
+
+- [x] **Pattern Extraction:** Update `extractPatternsForWord` to explicitly return Unigrams (all chars) and Trigrams (all 3-char sequences).
+- [x] **Progression Logic:**
+  - Create `ProgressionManager` or helper functions.
+  - Implement `calculateStageMastery(stats, stage, targetLatency) -> percentage`.
+  - Implement `checkUnlockStatus(stats, targetLatency) -> currentMaxStage`.
+- [x] **Sequential Selector:**
+  - Implement `selectNextSequentialPattern(stats, stage, targetLatency)`.
+  - Logic: Filter patterns by `stage`. Sort by `latency - target`. Pick top 1.
+
+#### Packages/Generator
+
+- [x] **Indexer Update:** Ensure `WordIndexer` builds indices for Unigrams and Trigrams so they can be targeted specifically.
+- [x] **Generator Update:**
+  - Support "Unigram Targeting" (Ensure words contain the specific char).
+  - Support "Trigram Targeting" (Ensure words contain the specific trigram).
+
+#### Packages/Types
+
+- [x] **Update Interfaces:**
+  - Add `Stage` type (`'unigram' | 'bigram' | 'trigram'`).
+  - Add `LearningMode` type (`'reinforced' | 'sequential'`).
+  - Update `EngineState` to include `currentStage`, `stageMastery`, and `lockedStages`.
+
+#### Apps/Frontend (Engine)
+
+- [x] **State Management:**
+  - Track `learningMode` (from UI toggle).
+  - Track `currentStage` (Unigram/Bigram/Trigram).
+  - **Auto-Promotion:** If in "Auto" mode, engine should automatically advance stage when unlock condition is met.
+- [x] **Word Generation Integration:**
+  - Pass `stage` and `mode` to the pattern selector.
+  - If `mode === 'sequential'`, use `selectNextSequentialPattern`.
+  - If `mode === 'reinforced'`, use Bandit but filter candidates by `currentStage`.
+- [x] **Stage Enforcement:**
+  - Automatically downgrade to unlocked stage if WPM increase locks current stage.
+
+#### Apps/Frontend (UI)
+
+- [x] **Sidebar/Header:**
+  - Update Mode Selectors to show **Lock Icons** for Bigram/Trigram if criteria not met.
+  - Add **Progress Bars** under each stage label showing the % towards 85%.
+- [x] **Strategy Toggles:**
+  - Ensure "Reinforced" vs "Sequential" toggles update the engine state.
+- [x] **Feedback:**
+  - When a new stage unlocks, show a toast/notification.
+  - In Sequential mode, clearly display "Drilling [Pattern]: [Current Speed] / [Target]".
