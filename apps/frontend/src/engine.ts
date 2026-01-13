@@ -138,9 +138,7 @@ export class TypingEngine {
 
   setMode(mode: LearningMode) {
     this.state.progression.learningMode = mode;
-    this.state.words = this.state.words.slice(0, this.state.activeWordIndex + 1);
-    this.generateMoreWords();
-    this.notify();
+    this.resetWords();
   }
 
   setTargetWpm(wpm: number) {
@@ -169,6 +167,22 @@ export class TypingEngine {
     this.notify();
   }
   // ---------------------------------
+
+  private resetWords() {
+    this.state.words = [];
+    this.state.activeWordIndex = 0;
+    this.state.activeCharIndex = 0;
+    this.state.typedSoFar = "";
+    this.state.isError = false;
+
+    this.batchStartTime = 0;
+    this.batchCorrectChars = 0;
+    this.isBatchStarted = false;
+
+    this.generateMoreWords();
+    this.updateCurrentPattern();
+    this.notify();
+  }
 
   private updateSessionStats() {
     if (!this.sessionStart) return;
