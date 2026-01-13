@@ -10,17 +10,11 @@ function sampleNormal(mean: number, variance: number): number {
   return z0 * Math.sqrt(variance) + mean;
 }
 
-function timeBoostFunc(deltaMs: number): number {
-  // Linearly or log increase with time
-  // e.g. boost 1 point per minute
-  return deltaMs / 60000;
-}
-
 export function calculatePatternScore(
   p: PatternStat,
   config: UserConfig,
   deterministic = false,
-  includeTimeBoost = true
+  _includeTimeBoost = true // Deprecated: Time Boost removed to prevent combinatorial explosion
 ): number {
   const sampleLatency = deterministic ? p.ewmaLatency : sampleNormal(p.ewmaLatency, p.ewmaVariance);
 
@@ -34,10 +28,7 @@ export function calculatePatternScore(
   // 3. Weakness (Gap)
   const gap = Math.max(0, adjustedLatency - config.targetLatency);
 
-  // 4. Time Decay
-  const timeBoost = includeTimeBoost ? timeBoostFunc(Date.now() - p.lastSeen) : 0;
-
-  // 5. Mastery Detection
+  // 4. Mastery Detection
   // We use the helper but ignore the specific latency check here because 'Gap' handles the latency component of the score.
   // The penalty is specifically for "Confident + Stable + High Accuracy".
   const totalEvidence = p.errorAlpha + p.errorBeta;
@@ -52,7 +43,6 @@ export function calculatePatternScore(
   return (
     config.w_unc * Math.sqrt(p.ewmaVariance) +
     config.w_weak * gap +
-    config.w_time * timeBoost +
     config.w_error * errorRate * 100 -
     masteryPenalty
   );

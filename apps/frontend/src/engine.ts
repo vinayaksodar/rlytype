@@ -13,13 +13,13 @@ import {
   updatePatternStat,
   createInitialStat,
   selectTopPatterns,
-  getPatternScores,
   ScoredPattern,
   getFinger,
   selectNextSequentialPattern,
   getUnlockStatus,
   calculateStageMastery,
   getPatternStage,
+  calculateMasteryScore,
 } from "@rlytype/core";
 
 type Listener = (state: EngineState) => void;
@@ -489,7 +489,22 @@ export class TypingEngine {
     const allStats = Array.from(this.patternStats.values());
     // Filter out patterns with very few samples (n < 3) to avoid noise from barely-seen patterns
     const activeStats = allStats.filter((p) => p.n >= 3);
-    return getPatternScores(activeStats, this.config, true);
+
+    // Convert to Visual Score based on Mastery
+    // Mastery: 0-100 (Higher is Better)
+    // Visual Score: 0 (Green) - 300 (Red) (Higher is Worse/More Urgent)
+    // We use a steeper curve (* 10) so that 85% Mastery (Gap 15) maps to 150 (Yellow).
+    // Anything below 70% Mastery (Gap 30) will be fully Red (300).
+    const candidates = activeStats.map((p) => {
+      const mastery = calculateMasteryScore(p, this.config.targetLatency); // 0-100
+      const visualScore = (100 - mastery) * 10;
+      return { id: p.id, score: visualScore, stat: p };
+    });
+
+    // Sort by Visual Score Descending (Red/Worst first)
+    candidates.sort((a, b) => b.score - a.score);
+
+    return candidates;
   }
 }
 
