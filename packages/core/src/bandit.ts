@@ -33,8 +33,14 @@ export function calculatePatternScore(
   // The penalty is specifically for "Confident + Stable + High Accuracy".
   const totalEvidence = p.errorAlpha + p.errorBeta;
   const successRate = p.errorAlpha / totalEvidence;
+
+  // We MUST check if the latency requirement is met.
+  // If targetLatency drops (harder), this check fails, penalty is removed, and Gap score takes over.
   const isMasteredStable =
-    totalEvidence > 10 && successRate > 0.98 && p.ewmaVariance < LOW_VAR_THRESHOLD;
+    totalEvidence > 10 &&
+    successRate > 0.98 &&
+    p.ewmaVariance < LOW_VAR_THRESHOLD &&
+    adjustedLatency <= config.targetLatency;
 
   const masteryPenalty = isMasteredStable ? 1000 : 0;
 
