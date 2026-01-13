@@ -156,6 +156,22 @@ export class TypingEngine {
     // Trigger re-eval of mastery
     this.checkProgression();
 
+    // Re-evaluate Sequential Completion immediately
+    // (Reinforced mode is never 'finished', so we only need to toggle this for Sequential)
+    if (this.state.progression.learningMode === "sequential") {
+      const allStats = Array.from(this.patternStats.values());
+      const p = selectNextSequentialPattern(
+        allStats,
+        this.state.progression.currentStage,
+        this.config.targetLatency
+      );
+      this.state.progression.isStageFinished = p === null;
+    }
+
+    // Ensure the generator adapts to the new target immediately for BOTH modes
+    // (e.g. Reinforced priorities change, or Sequential finds a new drill target)
+    this.generateMoreWords();
+
     // Enforce Stage Locking: Downgrade if current stage is no longer unlocked
     if (!this.state.progression.isUnlocked[this.state.progression.currentStage]) {
       if (this.state.progression.isUnlocked.bigram) {
