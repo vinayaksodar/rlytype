@@ -234,9 +234,9 @@ function updateMasteryQueue() {
 
           <div>
 
-            <div style="font-weight:600; color:var(--accent-emerald); margin-bottom:0.25rem;">Stage Cleared!</div>
+            <div style="font-weight:600; color:var(--accent-emerald); margin-bottom:0.25rem;">Stage Mastered!</div>
 
-            <div style="font-size:0.8rem;">Maintenance Mode Active</div>
+            <div style="font-size:0.8rem; color: var(--text-muted);">Increase target speed or advance stage to continue.</div>
 
           </div>
 
