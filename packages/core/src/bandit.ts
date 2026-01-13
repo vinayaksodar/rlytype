@@ -1,5 +1,6 @@
 import { PatternStat, UserConfig, PatternId, Stage } from "@rlytype/types";
 import { getPatternStage } from "./progression";
+import { isPatternMastered, calculateMasteryScore, LOW_VAR_THRESHOLD } from "./stats";
 
 // Box-Muller transform for normal distribution sampling
 function sampleNormal(mean: number, variance: number): number {
@@ -13,26 +14,6 @@ function timeBoostFunc(deltaMs: number): number {
   // Linearly or log increase with time
   // e.g. boost 1 point per minute
   return deltaMs / 60000;
-}
-
-const LOW_VAR_THRESHOLD = 400; // ms^2, implies std dev 20ms
-
-export function isPatternMastered(p: PatternStat, targetLatency: number): boolean {
-  const totalEvidence = p.errorAlpha + p.errorBeta;
-  const successRate = p.errorAlpha / totalEvidence;
-
-  // Criteria:
-  // 1. Enough samples (> 10)
-  // 2. High Success Rate (> 98%)
-  // 3. Stable (Low Variance)
-  // 4. Fast (EWMA Latency <= Target) -- Added this check explicitly for helper utility
-
-  return (
-    totalEvidence > 10 &&
-    successRate > 0.98 &&
-    p.ewmaVariance < LOW_VAR_THRESHOLD &&
-    p.ewmaLatency <= targetLatency
-  );
 }
 
 export function calculatePatternScore(
@@ -103,12 +84,11 @@ export function selectNextSequentialPattern(
 
   if (candidates.length === 0) return null;
 
-  // Sort by "Worst" first (Highest Latency)
+  // Sort by "Worst" Mastery Score first (Ascending)
   candidates.sort((a, b) => {
-    // Sequential mode typically ignores time boost because it's a "fix-it" mode
-    const gapA = a.ewmaLatency - targetLatency;
-    const gapB = b.ewmaLatency - targetLatency;
-    return gapB - gapA; // Descending
+    const scoreA = calculateMasteryScore(a, targetLatency);
+    const scoreB = calculateMasteryScore(b, targetLatency);
+    return scoreA - scoreB; // Ascending (Lowest score first)
   });
 
   return candidates[0].id;

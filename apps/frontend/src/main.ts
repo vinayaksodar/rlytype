@@ -2,6 +2,7 @@ import { inject } from "@vercel/analytics";
 import { engine } from "./engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
 import { BATCH_SIZE, Stage, LearningMode } from "@rlytype/types";
+import { calculateMasteryScore } from "@rlytype/core";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -86,6 +87,7 @@ strategyOptions.forEach((option) => {
   option.addEventListener("click", () => {
     const strategy = (option as HTMLElement).dataset.value as LearningMode;
     engine.setMode(strategy);
+    updateMasteryQueue();
   });
 });
 
@@ -256,18 +258,32 @@ function updateMasteryQueue() {
   // 2. Map patterns to mastery values for sorting and rendering
   const targetLatency = 60000 / (targetWpm * 5);
   const patternMastery = relevantPatterns.map((p) => {
-    const totalSamples = p.stat.errorAlpha + p.stat.errorBeta;
-    const accuracy = totalSamples > 0 ? p.stat.errorAlpha / totalSamples : 1;
-    const speedFactor = Math.min(1, targetLatency / Math.max(1, p.stat.ewmaLatency));
-    const mastery = Math.round(speedFactor * accuracy * 100);
-
-    return { ...p, mastery, accuracy };
+    const mastery = calculateMasteryScore(p.stat, targetLatency);
+    // Recalculate accuracy just for the sorting tie-breaker or display if needed,
+    // but the mastery score itself is now standardized.
+    // The UI uses 'accuracy' for nothing? No, it's not used in the HTML template below.
+    // Actually, check the HTML template... it only uses 'p.mastery'.
+    // Wait, the template uses 'p.id' and 'p.mastery'.
+    // The previous code also returned 'accuracy' but it wasn't used in the template string I see in the context?
+    // Let's verify. The template is:
+    /*
+        <span class="p-pattern">${formatPattern(p.id)}</span>
+        <div class="p-stats">
+          <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
+          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
+        </div>
+    */
+    // So 'accuracy' is unused.
+    return { ...p, mastery };
   });
 
   // 3. Sort by Mastery Ascending (Worst mastery at top)
   patternMastery.sort((a, b) => a.mastery - b.mastery);
 
-  patternMastery.slice(0, 8).forEach((p) => {
+  // If in Sequential Mode, only show the one being drilled (Top 1)
+  const limit = engine["state"].progression.learningMode === "sequential" ? 1 : 8;
+
+  patternMastery.slice(0, limit).forEach((p) => {
     const li = document.createElement("li");
     li.classList.add("priority-item");
 

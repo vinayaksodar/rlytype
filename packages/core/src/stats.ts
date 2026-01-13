@@ -1,5 +1,32 @@
 import { PatternStat, UserConfig } from "@rlytype/types";
 
+export const LOW_VAR_THRESHOLD = 400; // ms^2, implies std dev 20ms
+
+export function isPatternMastered(p: PatternStat, targetLatency: number): boolean {
+  const totalEvidence = p.errorAlpha + p.errorBeta;
+  const successRate = p.errorAlpha / totalEvidence;
+
+  // Criteria:
+  // 1. Enough samples (> 10)
+  // 2. High Success Rate (> 98%)
+  // 3. Stable (Low Variance)
+  // 4. Fast (EWMA Latency <= Target) -- Added this check explicitly for helper utility
+
+  return (
+    totalEvidence > 10 &&
+    successRate > 0.98 &&
+    p.ewmaVariance < LOW_VAR_THRESHOLD &&
+    p.ewmaLatency <= targetLatency
+  );
+}
+
+export function calculateMasteryScore(stat: PatternStat, targetLatency: number): number {
+  const totalSamples = stat.errorAlpha + stat.errorBeta;
+  const accuracy = totalSamples > 0 ? stat.errorAlpha / totalSamples : 1.0;
+  const speedFactor = Math.min(1, targetLatency / Math.max(1, stat.ewmaLatency));
+  return Math.round(speedFactor * accuracy * 100);
+}
+
 const EWMA_ALPHA = 0.15; // Default if not in config, though we usually pass config
 
 export function createInitialStat(id: string): PatternStat {
