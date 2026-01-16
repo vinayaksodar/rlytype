@@ -61,7 +61,7 @@ export class HeatmapRenderer {
     const charScores: Record<string, number> = {};
 
     // Check if we have explicit unigram stats (length === 1)
-    const explicitUnigrams = patterns.filter((p) => p.id.length === 1);
+    const explicitUnigrams = patterns.filter((p) => p.pattern.length === 1);
 
     if (explicitUnigrams.length > 0) {
       explicitUnigrams.forEach((p) => {

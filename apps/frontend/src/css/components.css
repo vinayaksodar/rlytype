@@ -226,7 +226,7 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* --- Footer Components --- */
 
-/* Priority Queue */
+/* Mastery Queue */
 .priority-list {
   list-style: none;
   padding: 0;
@@ -460,7 +460,7 @@ input[type="range"]::-webkit-slider-runnable-track {
   color: var(--text-muted);
 }
 
-/* Priority Queue Badges */
+/* Mastery Queue Badges */
 .status-badge {
   font-size: 0.65rem;
   padding: 2px 6px;

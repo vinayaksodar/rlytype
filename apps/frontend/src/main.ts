@@ -16,7 +16,7 @@ const targetValueDisplay = document.getElementById("target-value")!;
 const wordStreamEl = document.getElementById("word-stream")!;
 const statsWpmEl = document.getElementById("stat-wpm")!;
 const statsAccEl = document.getElementById("stat-acc")!;
-const statsPatternEl = document.getElementById("stat-pattern")!;
+
 const visualizerContainer = document.getElementById("visualizer-container")!;
 const priorityListEl = document.getElementById("priority-list")!;
 
@@ -33,8 +33,6 @@ const masteryPercentEl = document.getElementById("mastery-percent")!;
 const masteryBarEl = document.getElementById("mastery-bar")!;
 
 // --- Initialization ---
-
-const formatPattern = (id: string) => id.replace("same_finger:", "");
 
 // 1. Renderers
 const renderer = new BatchRenderer(wordStreamEl);
@@ -128,55 +126,11 @@ engine.subscribe((state) => {
     targetWpm = state.meta.targetWpm; // Sync local var
   }
 
-  if (state.progression.isStageFinished) {
-    statsPatternEl.textContent = "Stage Cleared";
-    statsPatternEl.style.color = "var(--accent-emerald)";
-    statsPatternEl.style.fontWeight = "bold";
-  } else {
-    statsPatternEl.textContent = formatPattern(state.stats.currentPattern || "--");
-    statsPatternEl.style.color = ""; // Reset
-    statsPatternEl.style.fontWeight = "";
-  }
-
   // 3. Update Mastery Widget
   const currentStage = state.progression.currentStage;
   const mastery = state.progression.mastery[currentStage];
   masteryPercentEl.textContent = `${mastery}%`;
   masteryBarEl.style.width = `${mastery}%`;
-
-  // 4. Update Mode Selectors (Locking & Active)
-  modeItems.forEach((item) => {
-    const label = item.querySelector(".mode-label")?.textContent?.toLowerCase() as Stage;
-    if (!label) return;
-
-    // Active State
-    if (label === currentStage) {
-      item.classList.add("active");
-    } else {
-      item.classList.remove("active");
-    }
-
-    // Locked State
-    const isUnlocked = state.progression.isUnlocked[label];
-    const el = item as HTMLElement;
-    if (!isUnlocked) {
-      el.classList.add("locked");
-      el.style.cursor = "not-allowed";
-
-      // Explicit Tooltip logic
-      if (label === "bigram") {
-        el.setAttribute("data-tooltip", "Unlock Bigrams by mastering 85% of Unigrams");
-      } else if (label === "trigram") {
-        el.setAttribute("data-tooltip", "Unlock Trigrams by mastering 85% of Bigrams");
-      }
-    } else {
-      el.classList.remove("locked");
-      el.style.cursor = "pointer";
-      el.removeAttribute("data-tooltip");
-    }
-    // Remove inline opacity to let CSS handle partial dimming
-    el.style.opacity = "";
-  });
 
   // 5. Update Strategy UI
   strategyOptions.forEach((opt) => {
@@ -215,7 +169,7 @@ engine.subscribe((state) => {
   }
 });
 
-// Mock Priority Queue Update
+// Mock Mastery Queue Update
 function updateMasteryQueue() {
   if (!priorityListEl) return;
 
@@ -226,31 +180,12 @@ function updateMasteryQueue() {
 
   priorityListEl.innerHTML = "";
 
-  if (
-    engine["state"].progression.isStageFinished &&
-    currentStage === engine["state"].progression.currentStage
-  ) {
-    priorityListEl.innerHTML = `<li class="priority-item" style="justify-content:center; color:var(--text-muted); padding: 1rem; text-align:center;">
-
-          <div>
-
-            <div style="font-weight:600; color:var(--accent-emerald); margin-bottom:0.25rem;">Stage Mastered!</div>
-
-            <div style="font-size:0.8rem; color: var(--text-muted);">Increase target speed or advance stage to continue.</div>
-
-          </div>
-
-        </li>`;
-
-    return;
-  }
-
   const patterns = engine.getPatternHeatmapData();
 
   // Filter patterns by stage (rudimentary check on ID length)
   const relevantPatterns = patterns.filter((p) => {
     if (currentStage === "unigram") return p.id.length === 1;
-    if (currentStage === "bigram") return p.id.length === 2 || p.id.startsWith("same_finger:");
+    if (currentStage === "bigram") return p.id.length === 2;
     if (currentStage === "trigram") return p.id.length === 3;
     return false;
   });
@@ -288,7 +223,7 @@ function updateMasteryQueue() {
     li.classList.add("priority-item");
 
     li.innerHTML = `
-        <span class="p-pattern">${formatPattern(p.id)}</span>
+        <span class="p-pattern">${p.id}</span>
         <div class="p-stats">
           <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
           <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>

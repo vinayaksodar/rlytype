@@ -1,14 +1,14 @@
 ## Gemini Added Memories
 
 - Implemented RlyType 'Cockpit' UI: Dashboard layout, CSS variables, Sidebar/Header/Footer components, and refactored renderers to use CSS classes.
-- Implemented Adaptive Dashboard footer with Satellite View and Priority Queue. Added Fullscreen Matrix Modal with sticky headers. Updated HeatmapRenderer to support both rendering modes.
+- Implemented Adaptive Dashboard footer with Satellite View and Mastery Queue. Added Fullscreen Matrix Modal with sticky headers. Updated HeatmapRenderer to support both rendering modes.
 - Refactored Stats Pill: Replaced 'Target Delta' and 'Reset' with 'Current Pattern'. Restored `targetWpm` to initialize slider state.
 - Simplified Mastery Widget: Static 'Mastery' label. Removed dynamic label logic. Cleaned up unused TS variables.
 - Unified color scheme: **Transitioned to 'Yellow Theme' (Deep Zinc + Accent Yellow)**.
   - Updated range slider shadow to use `accent-yellow`.
   - Updated drilling status badge to use `accent-yellow`.
   - Updated cursor style to use `accent-yellow` tint and shadow.
-- Updated Priority Queue: Shows full scrollable list of patterns sorted by score. Implemented logic for Bottleneck/Drilling/Mastered badges and Fluidity bar.
+- Updated Mastery Queue: Shows full scrollable list of patterns sorted by score. Implemented logic for Bottleneck/Drilling/Mastered badges and Fluidity bar.
 - Implemented custom dark scrollbar styles in layout.css to match application theme.
 - Implemented dynamic Adaptive Visualizer: Unigram (Key Grid), Bigram (Satellite Grid), Trigram (Mastery Bar Chart). Added scrolling and fit-width styles.
 - Enhanced Bigram Visualizer: Added A-Z row/column headers. Styled nodes as 85% squircles. Updated grid layout to 27x27.
@@ -375,7 +375,7 @@ function selectTopPatterns(allStats: PatternStat[], k = 3) {
 - [x] **Refinement:** Batch-based WPM Calculation (No idle decay).
 - [x] **Feature:** **Progression System** (Unigram -> Bigram -> Trigram unlocking).
 - [x] **Feature:** **Sequential Drill Mode** (Target specific patterns linearly).
-- [x] **UI:** **Adaptive Dashboard** (Satellite Grid for Bigrams, Priority Queue list).
+- [x] **UI:** **Adaptive Dashboard** (Satellite Grid for Bigrams, Mastery Queue list).
 - [x] **UI:** **Unified Yellow Theme** (Yellow accents for sliders, badges, cursors).
 
 ### Pending / Next Steps

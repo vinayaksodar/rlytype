@@ -1,10 +1,8 @@
-import { PatternId } from "@rlytype/types";
 import { extractPatternsForWord } from "@rlytype/core";
 
 export class WordIndexer {
-  // PatternId -> List of words containing it
-  private index: Map<PatternId, string[]> = new Map();
-  private flowWords: string[] = [];
+  // Pattern -> List of words containing it
+  private index: Map<string, string[]> = new Map();
 
   // Cache counts
   private patternCounts: { unigram: number; bigram: number; trigram: number } = {
@@ -15,7 +13,6 @@ export class WordIndexer {
 
   constructor(words: string[]) {
     // this.allWords = words;
-    this.flowWords = words.slice(0, 100);
     this.buildIndex(words);
   }
 
@@ -34,8 +31,8 @@ export class WordIndexer {
 
         // Track unique counts
         if (p.length === 1) allUnigrams.add(p);
-        else if (p.length === 2 && !p.startsWith("same_finger:")) allBigrams.add(p);
-        else if (p.length === 3 && !p.startsWith("same_finger:")) allTrigrams.add(p);
+        else if (p.length === 2) allBigrams.add(p);
+        else if (p.length === 3) allTrigrams.add(p);
       }
     }
 
@@ -50,11 +47,7 @@ export class WordIndexer {
     return this.patternCounts;
   }
 
-  getWordsForPattern(pattern: PatternId): string[] {
+  getWordsForPattern(pattern: string): string[] {
     return this.index.get(pattern) || [];
-  }
-
-  getFlowWords(): string[] {
-    return this.flowWords;
   }
 }
