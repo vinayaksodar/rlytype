@@ -214,7 +214,7 @@ function updateMasteryQueue() {
   // We can just check the active strategy element.
   const isSequential =
     document.querySelector(".segmented-option.active")?.getAttribute("data-value") === "sequential";
-  const limit = isSequential ? 1 : 8;
+  const limit = isSequential ? 1 : patternMastery.length;
 
   priorityListEl.innerHTML = "";
 
@@ -222,12 +222,14 @@ function updateMasteryQueue() {
     const li = document.createElement("li");
     li.classList.add("priority-item");
 
+    const masteryDisplay = p.stat.attempts === 0 ? "--" : `${p.mastery}%`;
+
     li.innerHTML = `
         <span class="p-pattern">${p.id}</span>
         <div class="p-stats">
           <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
           <div style="display: flex; align-items: center;">
-            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${masteryDisplay}</span>
           </div>
         </div>
     `;
