@@ -83,7 +83,7 @@ export class HeatmapRenderer {
       node.classList.add("unigram-node");
       node.textContent = char.toUpperCase();
 
-      if (charScores[char] !== undefined) {
+      if (charScores[char] > 0) {
         node.style.backgroundColor = this.getModernColor(charScores[char]);
         node.style.color = "#fff";
       }
@@ -101,7 +101,10 @@ export class HeatmapRenderer {
     // Buckets based on Mastery %
     const buckets = { "Needs Practice": 0, "Building Speed": 0, Mastered: 0 };
 
-    patterns.forEach((p) => {
+    // Filter out unseen/zero-mastery patterns to prevent "Sea of Red"
+    const activePatterns = patterns.filter((p) => p.mastery > 0);
+
+    activePatterns.forEach((p) => {
       if (p.mastery >= 95) buckets.Mastered++;
       else if (p.mastery >= 60) buckets["Building Speed"]++;
       else buckets["Needs Practice"]++;
@@ -188,7 +191,7 @@ export class HeatmapRenderer {
         const el = document.createElement("div");
         el.classList.add("satellite-node");
 
-        if (p) {
+        if (p && p.mastery > 0) {
           el.title = `${bigram}: ${Math.round(p.mastery)}%`;
           el.style.backgroundColor = this.getModernColor(p.mastery);
         }
