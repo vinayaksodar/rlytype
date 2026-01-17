@@ -201,15 +201,20 @@ export class TypingEngine {
     }
 
     if (this.state.meta.learningMode === "sequential") {
-      // 1. Sort by Mastery Ascending (Weakest first)
-      candidates.sort((a, b) => {
-        return a.mastery - b.mastery;
-      });
+      // 1. Seen but not mastered
+      const seen = candidates.filter((c) => c.mastery > 0 && c.mastery < 100);
 
-      // 2. Pick the first one that isn't fully mastered (100%)?
-      // Or just the absolute weakest.
-      const target = candidates.find((c) => c.mastery < 100) || candidates[0];
-      return target.id;
+      if (seen.length > 0) {
+        const minMastery = Math.min(...seen.map((c) => c.mastery));
+        const weakest = seen.filter((c) => c.mastery === minMastery);
+        return weakest[0].id;
+      }
+
+      // 2. Fallback: unseen patterns
+      const unseen = candidates.filter((c) => c.mastery === 0);
+      if (unseen.length > 0) {
+        return unseen[Math.floor(Math.random() * unseen.length)].id;
+      }
     }
 
     // Reinforced: Weighted Random
