@@ -236,6 +236,9 @@ export class TypingEngine {
   handleKey(key: string) {
     if (!this.state.isLoaded) return;
 
+    // Ignore leading space at the start of a batch (often from previous batch auto-advance)
+    if (!this.isBatchStarted && key === " ") return;
+
     if (!this.isBatchStarted) {
       this.isBatchStarted = true;
       this.batchStartTime = Date.now();
