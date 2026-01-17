@@ -120,6 +120,38 @@ input[type="range"]::-webkit-slider-runnable-track {
   box-shadow: 0 0 8px var(--accent-yellow);
 }
 
+/* --- Sidebar Footer --- */
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  padding: 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid transparent;
+}
+
+.github-link:hover {
+  color: var(--text-highlight);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--border-subtle);
+}
+
+.github-link svg {
+  color: var(--accent-yellow);
+}
+
 @keyframes pulse {
   0% {
     opacity: 0.5;
