@@ -42,12 +42,34 @@
     <link rel="stylesheet" href="/src/css/variables.css" />
     <link rel="stylesheet" href="/src/css/layout.css" />
     <link rel="stylesheet" href="/src/css/components.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        "name": "RlyType",
+        "url": "https://rlytype.com",
+        "description": "An advanced, adaptive typing tutor that uses pattern recognition and statistics to improve your touch typing speed and accuracy.",
+        "applicationCategory": "EducationalApplication",
+        "operatingSystem": "Any",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Person",
+          "name": "Vinayak Sodar"
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app-container">
       <!-- SIDEBAR: Command Center -->
       <aside id="sidebar">
-        <div class="sidebar-brand">Rly<span>Type</span></div>
+                <h1 class="sidebar-brand">
+                  Rly<span>Type</span>
+                </h1>
 
         <div class="sidebar-section">
           <div class="sidebar-title">Engine Strategy</div>
@@ -101,6 +123,7 @@
           <!-- Sidebar Toggle (Visual Only for now) -->
           <button
             id="sidebar-toggle"
+            aria-label="Toggle Sidebar"
             style="
               position: absolute;
               left: 1rem;
