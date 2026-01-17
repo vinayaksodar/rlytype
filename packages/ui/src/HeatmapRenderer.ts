@@ -1,4 +1,7 @@
-import { ScoredPattern } from "@rlytype/core";
+export interface HeatmapItem {
+  id: string;
+  mastery: number;
+}
 
 export class HeatmapRenderer {
   private container: HTMLElement;
@@ -7,15 +10,14 @@ export class HeatmapRenderer {
     this.container = container;
   }
 
-  // Color Scale: Emerald -> Yellow -> Rose
-  private getModernColor(score: number): string {
-    const clamped = Math.max(0, Math.min(300, score));
-    const t = clamped / 300;
+  // Color Scale: Rose (0%) -> Yellow (50%) -> Emerald (100%)
+  private getModernColor(mastery: number): string {
+    const t = Math.max(0, Math.min(100, mastery)) / 100;
 
     const stops = [
-      { t: 0.0, r: 16, g: 185, b: 129 }, // --accent-emerald (Mastered)
-      { t: 0.5, r: 234, g: 179, b: 8 }, // --accent-yellow (Slow)
-      { t: 1.0, r: 244, g: 63, b: 94 }, // --accent-rose (Urgent)
+      { t: 0.0, r: 244, g: 63, b: 94 }, // --accent-rose (Urgent / 0%)
+      { t: 0.5, r: 234, g: 179, b: 8 }, // --accent-yellow (Mid / 50%)
+      { t: 1.0, r: 16, g: 185, b: 129 }, // --accent-emerald (Mastered / 100%)
     ];
 
     let lower = stops[0];
@@ -39,7 +41,7 @@ export class HeatmapRenderer {
     return `rgb(${r}, ${g}, ${b})`;
   }
 
-  render(patterns: ScoredPattern[], mode: string = "Bigram") {
+  render(patterns: HeatmapItem[], mode: string = "Bigram") {
     this.container.innerHTML = "";
     this.container.className = "heatmap-container"; // Reset classes
 
@@ -52,7 +54,7 @@ export class HeatmapRenderer {
     }
   }
 
-  private renderUnigram(patterns: ScoredPattern[]) {
+  private renderUnigram(patterns: HeatmapItem[]) {
     this.container.classList.add("unigram-view");
     const grid = document.createElement("div");
     grid.classList.add("unigram-grid");
@@ -61,23 +63,18 @@ export class HeatmapRenderer {
     const charScores: Record<string, number> = {};
 
     // Check if we have explicit unigram stats (length === 1)
-    const explicitUnigrams = patterns.filter((p) => p.pattern.length === 1);
+    const explicitUnigrams = patterns.filter((p) => p.id.length === 1);
 
     if (explicitUnigrams.length > 0) {
       explicitUnigrams.forEach((p) => {
-        charScores[p.id] = p.score;
+        charScores[p.id] = p.mastery;
       });
     } else {
-      // Fallback: Aggregation from Bigrams
-      const aggregates: Record<string, { total: number; count: number }> = {};
+      // Fallback: Aggregation not really needed if engine provides all patterns,
+      // but keep for safety if patterns are mixed.
+      // Actually engine provides what is requested.
       patterns.forEach((p) => {
-        const char = p.id[0];
-        if (!aggregates[char]) aggregates[char] = { total: 0, count: 0 };
-        aggregates[char].total += p.score;
-        aggregates[char].count++;
-      });
-      Object.entries(aggregates).forEach(([char, data]) => {
-        charScores[char] = data.total / data.count;
+        if (p.id.length === 1) charScores[p.id] = p.mastery;
       });
     }
 
@@ -96,21 +93,19 @@ export class HeatmapRenderer {
     this.container.appendChild(grid);
   }
 
-  private renderTrigram(patterns: ScoredPattern[]) {
+  private renderTrigram(patterns: HeatmapItem[]) {
     this.container.classList.add("trigram-view");
     const chart = document.createElement("div");
     chart.classList.add("mastery-chart");
 
-    // Buckets: Volatile (<50), Uncertain (50-100), Stable (100-200), Mastered (>200)
-    // Note: Score metric might differ, using heuristic ranges for now.
+    // Buckets based on Mastery %
     const buckets = { Volatile: 0, Uncertain: 0, Stable: 0, Mastered: 0 };
 
     patterns.forEach((p) => {
-      if (p.score < 0)
-        buckets.Mastered++; // Mastery penalty sends score negative
-      else if (p.score > 200) buckets.Volatile++;
-      else if (p.score > 100) buckets.Uncertain++;
-      else buckets.Stable++;
+      if (p.mastery >= 98) buckets.Mastered++;
+      else if (p.mastery >= 75) buckets.Stable++;
+      else if (p.mastery >= 40) buckets.Uncertain++;
+      else buckets.Volatile++;
     });
 
     const maxVal = Math.max(...Object.values(buckets));
@@ -150,13 +145,13 @@ export class HeatmapRenderer {
     this.container.appendChild(chart);
   }
 
-  private renderBigram(patterns: ScoredPattern[]) {
+  private renderBigram(patterns: HeatmapItem[]) {
     // Satellite View Logic with Headers
     this.container.classList.add("bigram-view");
     const grid = document.createElement("div");
     grid.classList.add("satellite-grid");
 
-    const patternMap = new Map<string, ScoredPattern>();
+    const patternMap = new Map<string, HeatmapItem>();
     patterns.forEach((p) => {
       patternMap.set(p.id, p);
     });
@@ -196,8 +191,8 @@ export class HeatmapRenderer {
         el.classList.add("satellite-node");
 
         if (p) {
-          el.title = `${bigram}: ${Math.round(p.score)}`;
-          el.style.backgroundColor = this.getModernColor(p.score);
+          el.title = `${bigram}: ${Math.round(p.mastery)}%`;
+          el.style.backgroundColor = this.getModernColor(p.mastery);
         }
 
         grid.appendChild(el);

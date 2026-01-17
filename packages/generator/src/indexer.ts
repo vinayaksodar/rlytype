@@ -50,4 +50,13 @@ export class WordIndexer {
   getWordsForPattern(pattern: string): string[] {
     return this.index.get(pattern) || [];
   }
+
+  getAllPatterns(stage: "unigram" | "bigram" | "trigram"): string[] {
+    const len = stage === "unigram" ? 1 : stage === "bigram" ? 2 : 3;
+    const out: string[] = [];
+    for (const k of this.index.keys()) {
+      if (k.length === len) out.push(k);
+    }
+    return out;
+  }
 }

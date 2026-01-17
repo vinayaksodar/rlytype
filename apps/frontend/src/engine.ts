@@ -4,12 +4,11 @@ import { storage } from "@rlytype/storage";
 import {
   createInitialStat,
   updatePatternStat,
-  isPatternMastered,
   calculateMasteryScore,
+  calculateStageMastery,
 } from "@rlytype/core";
 
 const BATCH_SIZE = 10;
-const MIN_ATTEMPTS = 20;
 
 type Listener = (state: EngineState) => void;
 
@@ -24,15 +23,18 @@ export class TypingEngine {
     activeCharIndex: 0,
     typedSoFar: "",
     isError: false,
-    stats: { wpm: 0, accuracy: 100, sessionTime: 0, currentPattern: "", topBottleneck: "" },
-    progression: {
-      currentStage: "unigram",
-      learningMode: "reinforced",
-      mastery: { unigram: 0, bigram: 0, trigram: 0 },
+    stats: {
+      wpm: 0,
+      accuracy: 100,
+      sessionTime: 0,
+      currentPattern: "",
+      topBottleneck: "",
+      stageMastery: { unigram: 0, bigram: 0, trigram: 0 },
     },
     meta: {
-      targetWpm: 200,
-      learningMode: "sequential",
+      targetWpm: 80,
+      learningMode: "reinforced",
+      currentStage: "unigram",
     },
     isLoaded: false,
   };
@@ -52,6 +54,10 @@ export class TypingEngine {
   // ------------------------
 
   private lastKeyTime = 0;
+  private batchKeystrokes = 0;
+  private batchErrors = 0;
+  private batchStartTime = 0;
+  private isBatchStarted = false;
 
   // ------------------------
   // Initialization
@@ -65,9 +71,17 @@ export class TypingEngine {
     this.generator = new WordGenerator(this.indexer);
 
     await storage.init();
-    const loaded = await storage.loadAllPatternStats();
-    loaded.forEach((s) => this.patternStats.set(s.id, s));
+    const loadedStats = await storage.loadAllPatternStats();
+    loadedStats.forEach((s) => this.patternStats.set(s.id, s));
 
+    const config = await storage.loadConfig();
+    if (config) {
+      this.state.meta.targetWpm = config.targetWpm;
+      this.state.meta.learningMode = config.learningMode;
+      this.state.meta.currentStage = config.currentStage;
+    }
+
+    this.updateStageMastery();
     this.generateMoreWords();
     this.state.isLoaded = true;
     this.notify();
@@ -79,16 +93,27 @@ export class TypingEngine {
 
   setLearningMode(mode: LearningMode) {
     this.state.meta.learningMode = mode;
-    this.resetWords();
+    this.saveConfig();
+    if (this.state.isLoaded) {
+      this.resetWords();
+    }
   }
 
-  setTargetWpm(Wpm: number) {
-    this.state.meta.targetWpm = Wpm;
-    this.resetWords();
+  setTargetWpm(wpm: number) {
+    this.state.meta.targetWpm = wpm;
+    this.saveConfig();
+    if (this.state.isLoaded) {
+      this.updateStageMastery(); // Target changed, mastery changes
+      this.notify();
+    }
   }
 
   setStage(stage: Stage) {
-    this.state.progression.currentStage = stage;
+    this.state.meta.currentStage = stage;
+    this.saveConfig();
+    if (this.state.isLoaded) {
+      this.resetWords();
+    }
   }
 
   subscribe(listener: Listener) {
@@ -97,6 +122,25 @@ export class TypingEngine {
     return () => {
       this.listeners = this.listeners.filter((l) => l !== listener);
     };
+  }
+
+  getPatternHeatmapData() {
+    // Return data for all patterns in current stage, even if not yet practiced
+    const stage = this.state.meta.currentStage;
+    if (!this.indexer) return [];
+
+    const allPatterns = this.indexer.getAllPatterns(stage);
+    const targetLatency = this.getTargetLatency();
+
+    return allPatterns.map((id) => {
+      const stat = this.patternStats.get(id) || createInitialStat(id);
+      const mastery = calculateMasteryScore(stat, targetLatency);
+      return {
+        id,
+        stat,
+        mastery,
+      };
+    });
   }
 
   private notify() {
@@ -114,48 +158,72 @@ export class TypingEngine {
     this.state.typedSoFar = "";
     this.state.isError = false;
 
-    this.generateMoreWords();
+    // We do NOT reset session stats here, only batch stats
+    if (this.state.isLoaded) {
+      this.generateMoreWords();
+    }
     this.notify();
   }
 
   private generateMoreWords() {
+    this.batchKeystrokes = 0;
+    this.batchErrors = 0;
+    this.isBatchStarted = false;
+    this.batchStartTime = 0;
+
     const targetPattern = this.selectTargetPattern();
+    this.state.stats.currentPattern = targetPattern;
 
     const batch = this.generator.generateBatch(targetPattern, BATCH_SIZE);
-
-    this.state.words.push(...batch);
+    this.state.words = batch;
+    this.state.activeWordIndex = 0;
   }
 
-  /**
-   * Pattern selection:
-   * - Sequential: weakest (lowest mastery score)
-   * - Reinforced: weighted random by weakness
-   */
   private selectTargetPattern(): string {
-    const candidates = Array.from(this.patternStats.values())
-      .filter((s) => s.attempts >= MIN_ATTEMPTS)
-      .filter((s) => !isPatternMastered(s, this.state.meta.targetWpm));
+    const stage = this.state.meta.currentStage;
+    if (!this.indexer) return "th";
 
-    if (candidates.length === 0) throw new Error("No candidates for Target Pattern");
+    const allPatterns = this.indexer.getAllPatterns(stage);
+    const targetLatency = this.getTargetLatency();
 
-    if (this.state.meta.learningMode === "sequential") {
-      candidates.sort(
-        (a, b) =>
-          calculateMasteryScore(a, this.state.meta.targetWpm) -
-          calculateMasteryScore(b, this.state.meta.targetWpm)
-      );
-      return candidates[0].id;
-    }
-
-    // reinforced: weighted by weakness
-    const weighted = candidates.map((s) => {
-      const mastery = calculateMasteryScore(s, this.state.meta.targetWpm);
-      const weakness = Math.max(1, 100 - mastery); // avoid zero weight
-      return { pattern: s.id, weight: weakness };
+    // Map to candidates with mastery score
+    const candidates = allPatterns.map((id) => {
+      const stat = this.patternStats.get(id) || createInitialStat(id);
+      return {
+        id,
+        mastery: calculateMasteryScore(stat, targetLatency),
+        stat,
+      };
     });
 
-    const chosen = weightedRandom(weighted);
-    return chosen;
+    if (candidates.length === 0) {
+      // Fallback if indexer is empty? Should not happen if words.json is valid.
+      console.warn("No patterns found for stage:", stage);
+      return "th"; // safe fallback
+    }
+
+    if (this.state.meta.learningMode === "sequential") {
+      // 1. Sort by Mastery Ascending (Weakest first)
+      candidates.sort((a, b) => {
+        return a.mastery - b.mastery;
+      });
+
+      // 2. Pick the first one that isn't fully mastered (100%)?
+      // Or just the absolute weakest.
+      const target = candidates.find((c) => c.mastery < 100) || candidates[0];
+      return target.id;
+    }
+
+    // Reinforced: Weighted Random
+    // Weight = 100 - Mastery (min 1 to allow some chance)
+    const weighted = candidates.map((c) => {
+      return {
+        pattern: c.id,
+        weight: Math.max(5, 100 - c.mastery), // ensure at least small weight
+      };
+    });
+
+    return weightedRandom(weighted) || candidates[0].id;
   }
 
   // ------------------------
@@ -165,15 +233,23 @@ export class TypingEngine {
   handleKey(key: string) {
     if (!this.state.isLoaded) return;
 
+    if (!this.isBatchStarted) {
+      this.isBatchStarted = true;
+      this.batchStartTime = Date.now();
+    }
+
     const word = this.state.words[this.state.activeWordIndex];
+    if (!word) return; // Should not happen
 
     const now = Date.now();
 
     // End of word → expect space
     if (this.state.activeCharIndex === word.length) {
+      this.batchKeystrokes++;
       if (key === " ") {
         this.advanceWord();
       } else {
+        this.batchErrors++;
         this.state.isError = true;
       }
       this.notify();
@@ -181,24 +257,47 @@ export class TypingEngine {
     }
 
     const expected = word[this.state.activeCharIndex];
+    this.batchKeystrokes++;
 
     if (key === expected) {
       this.state.isError = false;
 
       if (this.state.activeCharIndex > 0) {
         const delta = now - this.lastKeyTime;
-        this.attributeStats(word, this.state.activeCharIndex, delta);
+        // Ignore very long pauses (distractions)
+        if (delta < 2000) {
+          this.attributeStats(word, this.state.activeCharIndex, delta);
+        }
       }
 
       this.state.typedSoFar += key;
       this.state.activeCharIndex++;
       this.lastKeyTime = now;
     } else {
+      this.batchErrors++;
       this.state.isError = true;
-      this.attributeError(word, this.state.activeCharIndex);
     }
 
     this.notify();
+  }
+
+  private finalizeBatchStats() {
+    if (!this.isBatchStarted || this.batchKeystrokes === 0) {
+      return;
+    }
+
+    // Accuracy
+    const rawAcc = ((this.batchKeystrokes - this.batchErrors) / this.batchKeystrokes) * 100;
+    this.state.stats.accuracy = Math.max(0, Math.round(rawAcc));
+
+    // WPM
+    const durationMinutes = (Date.now() - this.batchStartTime) / 60000;
+    if (durationMinutes > 0) {
+      this.state.stats.wpm = Math.round(this.batchKeystrokes / 5 / durationMinutes);
+    }
+
+    this.isBatchStarted = false;
+    this.batchStartTime = 0;
   }
 
   private advanceWord() {
@@ -206,8 +305,10 @@ export class TypingEngine {
     this.state.activeCharIndex = 0;
     this.state.typedSoFar = "";
 
-    if (this.state.words.length - this.state.activeWordIndex < BATCH_SIZE) {
+    if (this.state.activeWordIndex >= this.state.words.length) {
+      this.finalizeBatchStats();
       this.generateMoreWords();
+      this.updateStageMastery();
     }
   }
 
@@ -219,35 +320,53 @@ export class TypingEngine {
     const char = word[idx];
     const prev = word[idx - 1];
 
-    this.updateStat(char, latency, false);
-    this.updateStat(prev + char, latency, false);
+    this.updateStat(char, latency);
+    this.updateStat(prev + char, latency);
 
     if (idx > 1) {
       const prevPrev = word[idx - 2];
-      this.updateStat(prevPrev + prev + char, latency, false);
+      this.updateStat(prevPrev + prev + char, latency);
     }
   }
 
-  private attributeError(word: string, idx: number) {
-    const char = word[idx];
-    this.updateStat(char, 0, true);
-
-    if (idx > 0) {
-      const prev = word[idx - 1];
-      this.updateStat(prev + char, 0, true);
-    }
-  }
-
-  private updateStat(pattern: string, latency: number, isError: boolean) {
+  private updateStat(pattern: string, latency: number) {
     let stat = this.patternStats.get(pattern);
     if (!stat) {
       stat = createInitialStat(pattern);
       this.patternStats.set(pattern, stat);
     }
 
-    const updated = updatePatternStat(stat, latency, isError);
+    const updated = updatePatternStat(stat, latency);
     this.patternStats.set(pattern, updated);
     storage.savePatternStats([updated]);
+  }
+
+  private saveConfig() {
+    storage.saveConfig({
+      targetWpm: this.state.meta.targetWpm,
+      learningMode: this.state.meta.learningMode,
+      currentStage: this.state.meta.currentStage,
+    });
+  }
+
+  private updateStageMastery() {
+    if (!this.indexer) return;
+
+    const targetLatency = this.getTargetLatency();
+    const stages: Stage[] = ["unigram", "bigram", "trigram"];
+
+    for (const stage of stages) {
+      const patterns = this.indexer.getAllPatterns(stage);
+      const stats = patterns.map((p) => this.patternStats.get(p) || createInitialStat(p));
+      this.state.stats.stageMastery[stage] = calculateStageMastery(stats, targetLatency);
+    }
+  }
+
+  private getTargetLatency() {
+    // 5 chars per word standard. WPM = (Chars / 5) / Min
+    // CPC (Chars per minute) = WPM * 5
+    // MS per Char = 60000 / (WPM * 5)
+    return 60000 / (this.state.meta.targetWpm * 5);
   }
 }
 

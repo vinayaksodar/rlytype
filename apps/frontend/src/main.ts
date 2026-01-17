@@ -1,8 +1,7 @@
 import { inject } from "@vercel/analytics";
 import { engine } from "./engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
-import { BATCH_SIZE, Stage, LearningMode } from "@rlytype/types";
-import { calculateMasteryScore } from "@rlytype/core";
+import { Stage, LearningMode } from "@rlytype/types";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -15,6 +14,7 @@ const targetValueDisplay = document.getElementById("target-value")!;
 
 const wordStreamEl = document.getElementById("word-stream")!;
 const statsWpmEl = document.getElementById("stat-wpm")!;
+const statsPatternEl = document.getElementById("stat-pattern")!;
 const statsAccEl = document.getElementById("stat-acc")!;
 
 const visualizerContainer = document.getElementById("visualizer-container")!;
@@ -41,9 +41,9 @@ visualizerContainer.innerHTML = "";
 const heatmapRenderer = new HeatmapRenderer(visualizerContainer);
 
 // 2. UI State
-let lastPage = -1;
 let lastTargetWpm = -1;
 let lastStage: Stage | null = null;
+let lastWordIndex = -1;
 let targetWpm = 80; // Default
 
 // Initialize UI with defaults
@@ -84,7 +84,7 @@ footerToggleBtn.addEventListener("click", () => {
 strategyOptions.forEach((option) => {
   option.addEventListener("click", () => {
     const strategy = (option as HTMLElement).dataset.value as LearningMode;
-    engine.setMode(strategy);
+    engine.setLearningMode(strategy);
     updateMasteryQueue();
   });
 });
@@ -116,10 +116,10 @@ engine.subscribe((state) => {
   // 2. Update Stats Pill
   const wpm = state.stats.wpm;
   statsWpmEl.textContent = wpm.toString();
+  statsPatternEl.textContent = state.stats.currentPattern || "--";
   statsAccEl.textContent = state.stats.accuracy + "%";
 
   // Sync Slider (One-way binding from state to UI to respect loaded config)
-  // Check if value differs to avoid loop (though input event drives the other way)
   if (parseInt(targetSlider.value, 10) !== state.meta.targetWpm) {
     targetSlider.value = state.meta.targetWpm.toString();
     targetValueDisplay.textContent = state.meta.targetWpm.toString();
@@ -127,15 +127,15 @@ engine.subscribe((state) => {
   }
 
   // 3. Update Mastery Widget
-  const currentStage = state.progression.currentStage;
-  const mastery = state.progression.mastery[currentStage];
+  const currentStage = state.meta.currentStage;
+  const mastery = state.stats.stageMastery[currentStage];
   masteryPercentEl.textContent = `${mastery}%`;
   masteryBarEl.style.width = `${mastery}%`;
 
   // 5. Update Strategy UI
   strategyOptions.forEach((opt) => {
     const val = (opt as HTMLElement).dataset.value;
-    if (val === state.progression.learningMode) {
+    if (val === state.meta.learningMode) {
       opt.classList.add("active");
       if (val === "reinforced") {
         descReinforced.style.display = "block";
@@ -149,74 +149,71 @@ engine.subscribe((state) => {
     }
   });
 
-  // 6. Update Heatmap (Page-based to reduce jitter OR when target fluidity or stage changes)
-  const currentPage = Math.floor(state.activeWordIndex / BATCH_SIZE);
+  // Highlight active stage in sidebar
+  modeItems.forEach((item) => {
+    const label = item.querySelector(".mode-label")?.textContent?.toLowerCase();
+    if (label === currentStage) {
+      item.classList.add("active");
+    } else {
+      item.classList.remove("active");
+    }
+  });
+
+  // 6. Update Heatmap (When a new batch starts OR when target fluidity or stage changes)
   if (
-    currentPage !== lastPage ||
+    (state.activeWordIndex === 0 && lastWordIndex !== 0) ||
     state.meta.targetWpm !== lastTargetWpm ||
-    state.progression.currentStage !== lastStage
+    state.meta.currentStage !== lastStage
   ) {
     // Capitalize for renderer
     const modeCap = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
-    heatmapRenderer.render(engine.getPatternHeatmapData(), modeCap);
 
-    lastPage = currentPage;
+    // Engine now returns exactly what we need
+    const heatmapData = engine.getPatternHeatmapData();
+    heatmapRenderer.render(heatmapData, modeCap);
+
     lastTargetWpm = state.meta.targetWpm;
-    lastStage = state.progression.currentStage;
+    lastStage = state.meta.currentStage;
 
     // Update Mastery Queue
     updateMasteryQueue();
   }
+
+  // Update tracking for next render
+  lastWordIndex = state.activeWordIndex;
 });
 
-// Mock Mastery Queue Update
+// Mastery Queue Update
 function updateMasteryQueue() {
   if (!priorityListEl) return;
 
-  const currentStage =
-    (document
-      .querySelector(".mode-item.active .mode-label")
-      ?.textContent?.toLowerCase() as Stage) || "unigram";
-
-  priorityListEl.innerHTML = "";
-
-  const patterns = engine.getPatternHeatmapData();
-
-  // Filter patterns by stage (rudimentary check on ID length)
-  const relevantPatterns = patterns.filter((p) => {
-    if (currentStage === "unigram") return p.id.length === 1;
-    if (currentStage === "bigram") return p.id.length === 2;
-    if (currentStage === "trigram") return p.id.length === 3;
-    return false;
-  });
-
-  // 2. Map patterns to mastery values for sorting and rendering
-  const targetLatency = 60000 / (targetWpm * 5);
-  const patternMastery = relevantPatterns.map((p) => {
-    const mastery = calculateMasteryScore(p.stat, targetLatency);
-    // Recalculate accuracy just for the sorting tie-breaker or display if needed,
-    // but the mastery score itself is now standardized.
-    // The UI uses 'accuracy' for nothing? No, it's not used in the HTML template below.
-    // Actually, check the HTML template... it only uses 'p.mastery'.
-    // Wait, the template uses 'p.id' and 'p.mastery'.
-    // The previous code also returned 'accuracy' but it wasn't used in the template string I see in the context?
-    // Let's verify. The template is:
-    /*
-        <span class="p-pattern">${formatPattern(p.id)}</span>
-        <div class="p-stats">
-          <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
-          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
-        </div>
-    */
-    // So 'accuracy' is unused.
-    return { ...p, mastery };
-  });
+  // Get data directly from engine
+  const patternMastery = engine.getPatternHeatmapData();
 
   // 3. Sort by Mastery Ascending (Worst mastery at top)
-  patternMastery.sort((a, b) => a.mastery - b.mastery);
+  // Logic: Push 0-attempt patterns to the bottom so we focus on active bottlenecks.
+  patternMastery.sort((a, b) => {
+    const aAttempts = a.stat.attempts;
+    const bAttempts = b.stat.attempts;
+
+    if (aAttempts > 0 && bAttempts === 0) return -1;
+    if (aAttempts === 0 && bAttempts > 0) return 1;
+
+    // Both have attempts or both are 0: sort by mastery
+    return a.mastery - b.mastery;
+  });
 
   // If in Sequential Mode, only show the one being drilled (Top 1)
-  const limit = engine["state"].progression.learningMode === "sequential" ? 1 : 8;
+  // Accessing private state is hacky in TS but common in JS.
+  // Let's use the UI state we have via subscription or DOM.
+  // Actually, we can check the active class in DOM or just assume the queue logic.
+  // Better: engine exposes state via subscribe. But here we are outside.
+  // We can just check the active strategy element.
+  const isSequential =
+    document.querySelector(".segmented-option.active")?.getAttribute("data-value") === "sequential";
+  const limit = isSequential ? 1 : 8;
+
+  priorityListEl.innerHTML = "";
 
   patternMastery.slice(0, limit).forEach((p) => {
     const li = document.createElement("li");
@@ -226,7 +223,9 @@ function updateMasteryQueue() {
         <span class="p-pattern">${p.id}</span>
         <div class="p-stats">
           <div class="p-bar-bg"><div class="p-bar-fill" style="width: ${p.mastery}%"></div></div>
-          <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
+          <div style="display: flex; align-items: center;">
+            <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 4ch; text-align: right;">${p.mastery}%</span>
+          </div>
         </div>
     `;
 

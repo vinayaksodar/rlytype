@@ -6,7 +6,6 @@ export const BATCH_SIZE = 10;
 export interface PatternStat {
   id: string;
   attempts: number;
-  errors: number;
   ewmaLatency: number;
 }
 
@@ -22,19 +21,18 @@ export interface EngineState {
     sessionTime: number;
     topBottleneck: string;
     currentPattern: string;
-  };
-  progression: {
-    currentStage: Stage;
-    learningMode: LearningMode;
-    mastery: Record<Stage, number>; // 0-100 percentage
+    stageMastery: Record<Stage, number>; // 0-100 percentage
   };
   meta: {
     targetWpm: number;
-    learningMode: string;
+    learningMode: LearningMode;
+    currentStage: Stage;
   };
   isLoaded: boolean;
 }
 
 export interface UserConfig {
-  targetLatency: number;
+  targetWpm: number;
+  learningMode: LearningMode;
+  currentStage: Stage;
 }
