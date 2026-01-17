@@ -63,11 +63,9 @@ export class TypingEngine {
   // Initialization
   // ------------------------
 
-  async init() {
-    const response = await fetch("/words.json");
-    const data = await response.json();
-
-    this.indexer = new WordIndexer(data.words);
+  // Dependency Injection: Pass the word list (or indexer) here
+  async init(words: string[]) {
+    this.indexer = new WordIndexer(words);
     this.generator = new WordGenerator(this.indexer);
 
     await storage.init();
@@ -385,5 +383,3 @@ function weightedRandom(items: { pattern: string; weight: number }[]): string | 
   }
   return items[items.length - 1].pattern;
 }
-
-export const engine = new TypingEngine();

@@ -31,6 +31,7 @@
 │  ├─ core/                # Pure logic: Pattern extraction, Stat calculations (EWMA).
 │  ├─ storage/             # IndexedDB wrapper (Patterns, Config).
 │  ├─ generator/           # Inverted Index & Word Selection logic.
+│  ├─ engine/              # The "Game Loop" & State Management (Platform agnostic).
 │  ├─ ui/                  # Vanilla DOM Renderers (Batch, Stats, Heatmap).
 │  └─ types/               # Shared TypeScript interfaces.
 ├─ words.json              # Source corpus.
@@ -62,21 +63,26 @@
   - **`generateBatch(pattern)`:** Returns a list of words containing the specific target pattern.
   - Does _not_ currently implement complex flow/interleaving logic. It focuses purely on the target pattern.
 
+### `packages/engine` (The Brain)
+
+- **`TypingEngine`:** The central controller.
+  - **State Management:** Holds current words, active index, and session stats (`EngineState`).
+  - **Coordinator:** Orchestrates `generator`, `storage`, and `core` logic.
+  - **Input Handling:** Processes keystrokes, calculates stats, and handles error tracking.
+  - **Attribution:** Maps keystrokes to specific patterns and updates stats in `core`.
+  - **Dependency Injection:** Accepts raw word data in `init()` to remain environment-agnostic.
+
 ### `packages/ui`
 
 - **`BatchRenderer`:** Renders the active word batch. Handles cursor, correct/incorrect states, and error highlighting.
 - **`StatsRenderer`:** Simple dashboard for WPM, Accuracy, and Current Pattern.
 - **`HeatmapRenderer`:** (Visual component) Displays grid of pattern mastery.
 
-### `apps/frontend` (The "Engine")
+### `apps/frontend` (The "Face")
 
-- **`TypingEngine`:** The central controller.
-  - Initializes all packages.
-  - Manages the "Game Loop" (Key handling, Batch lifecycle).
-  - **State Management:** Holds current words, active index, and session stats.
-  - **Attribution:** Maps keystrokes to specific patterns and updates stats in `core`.
 - **`main.ts`:** Entry point.
-  - Initializes `TypingEngine`, `BatchRenderer`, and `HeatmapRenderer`.
+  - Fetches `words.json` and injects it into `TypingEngine`.
+  - Initializes `BatchRenderer` and `HeatmapRenderer`.
   - Manages UI event listeners (sidebar, settings, sliders).
   - Subscribes to engine state changes to update the DOM (including manual stats updates).
 
@@ -129,6 +135,6 @@ The engine operates in **Batches** (default 10 words). For each batch:
 
 ## 5. Usage & Extension
 
-- **Adding Features:** Logic should be placed in `packages/core` if pure, or `apps/frontend/src/engine.ts` if stateful/orchestrational.
+- **Adding Features:** Logic should be placed in `packages/core` if pure, or `packages/engine` if stateful/orchestrational.
 - **New Renderers:** Add to `packages/ui` and instantiate in `main.ts`.
 - **Modifying Stats:** Update `packages/core/src/stats.ts` and ensure `types` package reflects changes.

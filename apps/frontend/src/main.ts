@@ -1,5 +1,5 @@
 import { inject } from "@vercel/analytics";
-import { engine } from "./engine";
+import { TypingEngine } from "@rlytype/engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
 import { Stage, LearningMode } from "@rlytype/types";
 
@@ -34,13 +34,16 @@ const masteryBarEl = document.getElementById("mastery-bar")!;
 
 // --- Initialization ---
 
-// 1. Renderers
+// 1. Instantiate Engine
+const engine = new TypingEngine();
+
+// 2. Renderers
 const renderer = new BatchRenderer(wordStreamEl);
 // Re-use HeatmapRenderer for the Visualizer box
 visualizerContainer.innerHTML = "";
 const heatmapRenderer = new HeatmapRenderer(visualizerContainer);
 
-// 2. UI State
+// 3. UI State
 let lastTargetWpm = -1;
 let lastStage: Stage | null = null;
 let lastWordIndex = -1;
@@ -234,7 +237,12 @@ function updateMasteryQueue() {
 }
 
 // --- Start Engine ---
-engine.init();
+// Fetch words and init
+fetch("/words.json")
+  .then((res) => res.json())
+  .then((data) => {
+    engine.init(data.words);
+  });
 
 // --- Global Key Listener ---
 window.addEventListener("keydown", (e) => {

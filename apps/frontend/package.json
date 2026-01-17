@@ -16,6 +16,7 @@
     "@rlytype/storage": "*",
     "@rlytype/types": "*",
     "@rlytype/ui": "*",
+    "@rlytype/engine": "*",
     "@vercel/analytics": "^1.6.1"
   },
   "devDependencies": {
