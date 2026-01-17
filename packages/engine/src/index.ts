@@ -279,6 +279,14 @@ export class TypingEngine {
       this.state.typedSoFar += key;
       this.state.activeCharIndex++;
       this.lastKeyTime = now;
+
+      // Auto-advance if last word of batch is completed
+      if (
+        this.state.activeCharIndex === word.length &&
+        this.state.activeWordIndex === this.state.words.length - 1
+      ) {
+        this.advanceWord();
+      }
     } else {
       this.batchErrors++;
       this.state.isError = true;
