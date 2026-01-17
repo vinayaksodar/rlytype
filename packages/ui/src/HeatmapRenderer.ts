@@ -10,35 +10,28 @@ export class HeatmapRenderer {
     this.container = container;
   }
 
-  // Color Scale: Rose (0%) -> Yellow (50%) -> Emerald (100%)
+  // Color Scale: Rose (<80%) -> Yellow (90%) -> Emerald (100%)
   private getModernColor(mastery: number): string {
-    const t = Math.max(0, Math.min(100, mastery)) / 100;
+    const t = Math.max(0, Math.min(100, mastery));
 
-    const stops = [
-      { t: 0.0, r: 244, g: 63, b: 94 }, // --accent-rose (Urgent / 0%)
-      { t: 0.5, r: 234, g: 179, b: 8 }, // --accent-yellow (Mid / 50%)
-      { t: 1.0, r: 16, g: 185, b: 129 }, // --accent-emerald (Mastered / 100%)
-    ];
-
-    let lower = stops[0];
-    let upper = stops[stops.length - 1];
-
-    for (let i = 0; i < stops.length - 1; i++) {
-      if (t >= stops[i].t && t <= stops[i + 1].t) {
-        lower = stops[i];
-        upper = stops[i + 1];
-        break;
-      }
+    if (t < 80) {
+      // Strictly Rose below 80%
+      return "rgb(244, 63, 94)";
+    } else if (t < 90) {
+      // Rose -> Yellow (80% to 90%)
+      const factor = (t - 80) / 10;
+      const r = Math.round(244 + (234 - 244) * factor);
+      const g = Math.round(63 + (179 - 63) * factor);
+      const b = Math.round(94 + (8 - 94) * factor);
+      return `rgb(${r}, ${g}, ${b})`;
+    } else {
+      // Yellow -> Emerald (90% to 100%)
+      const factor = (t - 90) / 10;
+      const r = Math.round(234 + (16 - 234) * factor);
+      const g = Math.round(179 + (185 - 179) * factor);
+      const b = Math.round(8 + (129 - 8) * factor);
+      return `rgb(${r}, ${g}, ${b})`;
     }
-
-    const range = upper.t - lower.t;
-    const factor = range === 0 ? 0 : (t - lower.t) / range;
-
-    const r = Math.round(lower.r + (upper.r - lower.r) * factor);
-    const g = Math.round(lower.g + (upper.g - lower.g) * factor);
-    const b = Math.round(lower.b + (upper.b - lower.b) * factor);
-
-    return `rgb(${r}, ${g}, ${b})`;
   }
 
   render(patterns: HeatmapItem[], mode: string = "Bigram") {
