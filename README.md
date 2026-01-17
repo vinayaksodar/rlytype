@@ -12,66 +12,60 @@ Most typing tutors focus on words or random characters. **RlyType** treats words
 
 ## How it Works
 
-### 1. Pattern-Based Learning
+1.  **Pattern Tracking:** Every keystroke you make is measured for latency (Inter-Key Stroke Interval).
+2.  **Multi-Layer Attribution:** A single keystroke updates stats for the character (Unigram), the pair (Bigram), and the triplet (Trigram).
+3.  **Real-Time Adaptation:** The engine identifies "bottlenecks"—patterns where your speed is significantly below your target WPM.
+4.  **Targeted Drilling:** The generator selects words from a local dictionary that specifically contain your weakest patterns.
 
-Instead of tracking WPM per word, RlyType tracks performance (latency and error rate) for every character transition (bigram). It maps these to:
+## Features
 
-- **Physical Layout:** Understanding same-finger jumps or hand-alternation.
-- **Statistical Frequency:** Prioritizing common English patterns.
-
-### 2. The Bandit Algorithm (Thompson Sampling)
-
-The engine uses a Thompson-Sampling bandit to decide which patterns to show you next. Each pattern is assigned a priority score based on several weighted factors:
-
-- **Uncertainty (Exploration):** Favors patterns with high variance or few samples. The system "explores" these to gain confidence in your true skill level.
-- **Weakness (The Gap):** Calculates the gap between your sampled latency and your **Auto-Tuned Target**. Slower patterns get higher priority.
-- **Accuracy (Error Rate):** Patterns with frequent typos are heavily penalized and prioritized for drilling, ensuring speed doesn't come at the cost of precision.
-- **Biomechanical Leniancy:** The engine applies a 15% latency discount to "Same-Finger Jumps" (e.g., `ed`, `lo`), acknowledging that these are naturally slower than hand-alternation patterns.
-- **Recency (Spaced Repetition):** Applies a "Time Boost" to patterns you haven't seen recently, preventing muscle-memory decay.
-- **Mastery Suppression:** Once a pattern demonstrates consistent high speed and < 2% error rate over many samples, it is assigned a "Mastery Penalty" to move it out of the active drill queue.
-
-### 3. Auto-Tuning Baseline
-
-RlyType doesn't use a fixed target speed. It constantly calculates your **Global Average Latency** and sets your "Target" to be ~5% faster than your current average. This ensures the challenge scales perfectly with your skill level.
-
-### 4. Interactive Heatmap
-
-A real-time heatmap visualizes your performance across the entire alphabet.
-
-- **Green:** Patterns where you are at or above your target speed.
-- **Red:** Bottlenecks that are currently being targeted by the generator.
-
-### 5. Batch-based Pagination UI
-
-To maintain focus and provide clear milestones, the UI renders words in fixed, discrete pages (batches).
-
-- **Focus:** You see one page of words at a time.
-- **Milestones:** Completing a batch triggers a refresh to the next set of words, giving a sense of accomplishment.
-- **Progress Tracking:** Stats and the heatmap are updated at these natural break points.
+- **Mastery-Based Progression:** Visual heatmaps and charts show your progress across Unigrams, Bigrams, and Trigrams.
+- **Dynamic Learning Modes:**
+  - **Reinforced:** Weighted random selection targeting weaknesses while maintaining overall flow.
+  - **Sequential:** Strict drilling of your absolute weakest patterns first.
+- **Offline-First:** All statistics and configurations are stored locally in your browser using IndexedDB. No server required.
+- **Performance Focused:** Built with vanilla TypeScript and direct DOM manipulation for zero-latency input processing.
 
 ## Tech Stack
 
 - **Monorepo:** Turborepo
 - **Frontend:** Vite + TypeScript
-- **Engine Logic:** Framework-agnostic TypeScript packages (`@rlytype/core`, `@rlytype/generator`)
-- **Storage:** IndexedDB (all data stays locally on your machine)
-- **Styling:** Plain CSS with a focus on high-contrast, low-latency rendering.
+- **Engine Logic:** Framework-agnostic TypeScript packages
+  - `@rlytype/core`: Mastery logic and EWMA statistics.
+  - `@rlytype/generator`: Inverted index and word selection.
+  - `@rlytype/storage`: IndexedDB persistence layer.
+  - `@rlytype/ui`: Modular rendering components.
+- **Styling:** Vanilla CSS with custom properties for a modern, high-contrast UI.
+
+## Monorepo Layout
+
+```text
+├─ apps/
+│  └─ frontend/      # Main application entry and engine orchestration
+├─ packages/
+│  ├─ core/          # Pattern extraction and stat calculations
+│  ├─ storage/       # IndexedDB persistence
+│  ├─ generator/     # Word selection logic
+│  ├─ ui/            # Shared UI components and renderers
+│  └─ types/         # Shared TypeScript interfaces
+└─ words.json        # Frequency-sorted word corpus
+```
 
 ## Running Locally
 
-1. **Install dependencies:**
+1.  **Install dependencies:**
+    ```bash
+    npm install
+    ```
+2.  **Start development server:**
+    ```bash
+    npm run dev
+    ```
+3.  **Build for production:**
+    ```bash
+    npm run build
+    ```
 
-   ```bash
-   npm install
-   ```
+## License
 
-2. **Start development server:**
-
-   ```bash
-   npm run dev
-   ```
-
-3. **Build for production:**
-   ```bash
-   npm run build
-   ```
+MIT

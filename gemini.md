@@ -1,474 +1,134 @@
-## Gemini Added Memories
+# Typing Tutor — LLM Agent Context & Architecture
 
-- Implemented RlyType 'Cockpit' UI: Dashboard layout, CSS variables, Sidebar/Header/Footer components, and refactored renderers to use CSS classes.
-- Implemented Adaptive Dashboard footer with Satellite View and Mastery Queue. Added Fullscreen Matrix Modal with sticky headers. Updated HeatmapRenderer to support both rendering modes.
-- Refactored Stats Pill: Replaced 'Target Delta' and 'Reset' with 'Current Pattern'. Restored `targetWpm` to initialize slider state.
-- Simplified Mastery Widget: Static 'Mastery' label. Removed dynamic label logic. Cleaned up unused TS variables.
-- Unified color scheme: **Transitioned to 'Yellow Theme' (Deep Zinc + Accent Yellow)**.
-  - Updated range slider shadow to use `accent-yellow`.
-  - Updated drilling status badge to use `accent-yellow`.
-  - Updated cursor style to use `accent-yellow` tint and shadow.
-- Updated Mastery Queue: Shows full scrollable list of patterns sorted by score. Implemented logic for Bottleneck/Drilling/Mastered badges and Fluidity bar.
-- Implemented custom dark scrollbar styles in layout.css to match application theme.
-- Implemented dynamic Adaptive Visualizer: Unigram (Key Grid), Bigram (Satellite Grid), Trigram (Mastery Bar Chart). Added scrolling and fit-width styles.
-- Enhanced Bigram Visualizer: Added A-Z row/column headers. Styled nodes as 85% squircles. Updated grid layout to 27x27.
-- Implemented Sticky Headers for Bigram Heatmap: Top row and left column labels now stay pinned during scrolling using CSS sticky positioning.
-- Removed 'Expanded View' feature: Deleted Fullscreen Matrix Modal, Expand button, and associated CSS/JS logic.
-- Implemented footer toggle logic: Added collapse button, CSS height transition, and event handling. Restored missing JS variable declarations.
-- **Implemented Stage Enforcement:** Added logic in `engine.ts` to automatically downgrade the user to an unlocked stage (Bigram/Unigram) if the current stage becomes locked due to increased Target WPM.
+**Purpose:** This document describes the current architecture and implementation details of the client-side adaptive typing tutor engine. It serves as the primary context for the LLM agent to understand the codebase.
 
 ---
 
-# Typing Tutor — LLM Agent Implementation Plan
+## 0. High-level Overview
 
-**Purpose:** This markdown describes a complete implementation plan for a client-side adaptive typing tutor engine using a turborepo monorepo, Vite for the frontend app, plain HTML/CSS/TypeScript for the engine UI, and a small shared core library implementing pattern extraction, statistics, and a Thompson-Sampling bandit. The LLM agent will use this plan to generate code, tests, and scaffolding.
-
----
-
-## 0\. High-level requirements & assumptions
-
-- **Architecture:** Entirely client-side. No server required.
-- **Data Source:** You will provide a `words.json` containing frequency-sorted words (highest frequency first). The generator will query this local corpus to assemble valid words that cover requested patterns.
-- **Learning Unit:** The atomic unit of learning is the _pattern_ (bigrams/trigrams/keyboard-geometry patterns), not the word. Words are merely delivery vehicles.
-- **Algorithm:** Thompson Sampling per-pattern, EWMA + variance for latency, Beta distribution for error rate.
-- **Storage:** Persistent storage via IndexedDB.
-- **UX:** Batch-based (paragraph view) interface. No "flashcard" or single-word displays.
-- **Metrics:** Success is defined by minimizing the upper tail of latency/error distributions, not just maximizing average WPM.
-- **Technology Stack:**
+- **Architecture:** Client-side only (Offline-first).
+- **Data Source:** Local `words.json` containing frequency-sorted words.
+- **Learning Unit:** **Patterns** (Unigrams, Bigrams, Trigrams). Words are dynamically selected to target specific patterns.
+- **Algorithm:**
+  - **Stats:** Exponential Weighted Moving Average (EWMA) for latency tracking.
+  - **Selection:** Weighted random selection based on pattern mastery (Reinforced Learning) or sequential weakness targeting.
+- **Storage:** IndexedDB for persistent stats and user configuration.
+- **Tech Stack:**
   - **Monorepo:** Turborepo
-  - **Package Manager:** NPM
+  - **Build:** Vite (Frontend), TSC (Packages)
   - **Language:** TypeScript
-  - **Framework:** Vanilla (No React/Vue/Angular). Direct DOM manipulation.
-  - **Build Tool:** Vite
+  - **UI Framework:** Vanilla DOM (No React/Vue) for maximum performance and zero overhead.
 
 ---
 
-## 1\. Monorepo layout (turborepo)
+## 1. Monorepo Structure
 
 ```
 / (repo root)
 ├─ apps/
-│  ├─ frontend/                 # front-end app (Vite) — UI + engine bundle
+│  ├─ frontend/            # Vite app. Glues engine, UI, and storage together.
 ├─ packages/
-│  ├─ core/                # plain TS logic: patterns, bandit, stats, attribution
-│  ├─ storage/             # IndexedDB wrapper + schema
-│  ├─ generator/           # word selection & mapping logic (uses words.json)
-│  ├─ ui/                  # small DOM utilities, components, CSS tokens
-│  └─ types/               # shared TS types
-├─ scripts/
-├─ words.json              # frequency-sorted words (provided by you)
-├─ package.json
-└─ turbo.json
-```
-
-Notes:
-
-- `apps/frontend` is a Vite app that imports `packages/*` to assemble the shipped client.
-- Keep `core` framework-agnostic so it can be embedded into other hosts or packaged later.
-
----
-
-## 2\. Packages and responsibilities
-
-### packages/core
-
-- **Pattern Definition:** Extract bigrams/trigrams and heuristic patterns (same-finger jumps).
-- **Statistics:** Maintain EWMA mean latency, variance, sample count, and trend per pattern.
-- **Bandit Logic:** Implement Thompson Sampling to select patterns based on uncertainty and weakness.
-- **Attribution:** Map raw keystroke timestamps to specific patterns (IKSI logic).
-
-### packages/storage
-
-- **Persistence:** Lightweight IndexedDB wrapper (promises-based).
-- **Schema:** `PatternStat`, `Session`, `Config`.
-- **Utilities:** Export/import JSON for debugging/backup.
-
-### packages/generator
-
-- **Indexing:** Inverted index mapping `PatternID -> List<Word>`.
-- **Selection:** "Priority-Weighted Interleaving" algorithm.
-- **Flow Control:** Mixes "Target Words" (heavy on requested patterns) with "Flow Words" (common high-freq words) to prevent fatigue.
-- **Strict Focus Mode (Implemented):** Forces 100% of words in a batch to target a single pattern if requested.
-
-### packages/ui
-
-- **Rendering:** `BatchRenderer` uses direct DOM manipulation.
-- **Stats:** `StatsRenderer` displays WPM, Accuracy, and Bottlenecks.
-- **Heatmap:** `HeatmapRenderer` visualizes pattern scores in a grid.
-- **Visuals:** Subtle highlighting of target patterns _within_ words.
-- **Layout:** Flexbox-based paragraph view with text wrapping (replacing horizontal scroll).
-
-### apps/frontend
-
-- **Glue Code:** Session lifecycle, keyboard listeners, engine integration.
-- **Settings:** Adjust target latency, alpha/beta weights.
-- **Main Entry:** `main.ts` initializes `TypingEngine`, `BatchRenderer`, and `StatsRenderer`.
-
----
-
-## 3\. Data models (TypeScript interfaces)
-
-```ts
-// packages/types/index.ts
-export type PatternId = string; // e.g. "th" or "ing" or "same_finger:jk"
-
-export interface PatternStat {
-  id: PatternId;
-  n: number; // Total samples
-  ewmaLatency: number; // in ms
-  ewmaVariance: number;
-  errorAlpha: number; // beta prior alpha (successes)
-  errorBeta: number; // beta prior beta (failures)
-  lastSeen: number; // timestamp
-  trend: number; // short-term EWMA slope
-}
-
-export interface WordCandidate {
-  word: string;
-  // Specific patterns this word was chosen to target
-  targetMatches: Array<{ pattern: PatternId; startIndex: number }>;
-  isFlowWord: boolean; // True if this is a "palate cleanser" word
-}
-
-export interface EngineState {
-  words: WordCandidate[];
-  activeWordIndex: number;
-  activeCharIndex: number;
-  typedSoFar: string;
-  isError: boolean;
-  stats: {
-    wpm: number;
-    accuracy: number;
-    sessionTime: number;
-    topBottleneck: string;
-  };
-  isLoaded: boolean;
-}
+│  ├─ core/                # Pure logic: Pattern extraction, Stat calculations (EWMA).
+│  ├─ storage/             # IndexedDB wrapper (Patterns, Config).
+│  ├─ generator/           # Inverted Index & Word Selection logic.
+│  ├─ ui/                  # Vanilla DOM Renderers (Batch, Stats, Heatmap).
+│  └─ types/               # Shared TypeScript interfaces.
+├─ words.json              # Source corpus.
 ```
 
 ---
 
-## 4\. IndexedDB schema (high-level)
+## 2. Package Responsibilities
 
-- `patterns` store: key = `pattern_id`, value = `PatternStat`
-- `sessions` store: session metadata and event logs (optional)
-- `config` store: user settings
+### `packages/core`
 
-_Strategy:_ Make every write idempotent and batch writes with debounce (every N keystrokes or every 2s) to prevent I/O thrashing.
+- **Pattern Extraction:** Breaks words into Unigrams, Bigrams, and Trigrams.
+- **Mastery Logic:** Calculates mastery scores based on target WPM.
+  - Mastery is purely **speed-based** (Latency vs Target Latency).
+  - Capped at 100% (speed > target doesn't yield > 100% score).
+- **Stat Updates:** Handles EWMA calculations for latency.
 
----
+### `packages/storage`
 
-## 5\. Pattern extraction
+- **IndexedDB Wrapper:**
+  - **`patterns` store:** Stores `PatternStat` (attempts, ewmaLatency).
+  - **`config` store:** Stores `UserConfig` (targetWpm, learningMode, currentStage).
+- **Resilience:** Gracefully handles non-browser environments (SSR/Node) by doing nothing.
 
-Responsibilities:
+### `packages/generator`
 
-- Build canonical set of patterns at install time.
-- **Bigrams:** All adjacent character pairs in `words.json`.
-- **Heuristics:** Map characters to fingers (QWERTY default). Identify "Same-Finger" sequences (e.g., `ed`, `dec`) and "Hand-Alternation" sequences.
+- **Indexer:** Builds an inverted index (`Pattern -> Word[]`) on startup.
+- **Generator:**
+  - **`generateBatch(pattern)`:** Returns a list of words containing the specific target pattern.
+  - Does _not_ currently implement complex flow/interleaving logic. It focuses purely on the target pattern.
 
-APIs:
+### `packages/ui`
 
-```ts
-function extractPatternsForWord(word: string): PatternId[];
-```
+- **`BatchRenderer`:** Renders the active word batch. Handles cursor, correct/incorrect states, and error highlighting.
+- **`StatsRenderer`:** Simple dashboard for WPM, Accuracy, and Current Pattern.
+- **`HeatmapRenderer`:** (Visual component) Displays grid of pattern mastery.
 
----
+### `apps/frontend` (The "Engine")
 
-## 6\. Bandit + scoring logic (detailed)
-
-### Posterior modeling
-
-- **Latency:** Normal(EWMA, Variance). Keep `n` for confidence.
-- **Error:** Beta(α, β). α = Valid execution, β = Error or High Latency (\> 3x user median).
-
-### Thompson Sampling priority
-
-For each pattern `p`:
-
-1.  **Error Sample:** $S_{err} \sim Beta(\alpha, \beta)$ (Probability of failure).
-2.  **Latency Sample:** $S_{lat} \sim N(\mu, \sigma^2)$ (Projected cost).
-3.  **Gap:** $G = \max(0, S_{lat} - TargetLatency)$.
-4.  **Recency Boost:** Increases linearly with `Time.now - lastSeen`.
-5.  **Mastery Penalty:** If $S_{err} < 0.01$ and $\sigma^2$ is low, apply a heavy penalty to suppress mastered patterns.
-
-### Final priority score
-
-Sort by descending score:
-
-```ts
-score =
-  w_unc * sampleStd +
-  w_weak * Gap +
-  w_time * TimeBoost +
-  w_error * ErrorRate * 100 -
-  w_fatigue * Fatigue -
-  MasteryPenalty;
-```
-
-**Biomechanical Leniancy:**
-Patterns tagged as `same_finger:` (e.g., `ed`, `lo`) receive a **15% discount** on their sampled latency before the "Gap" is calculated. This prevents the system from unfairly penalizing naturally slower movements.
+- **`TypingEngine`:** The central controller.
+  - Initializes all packages.
+  - Manages the "Game Loop" (Key handling, Batch lifecycle).
+  - **State Management:** Holds current words, active index, and session stats.
+  - **Attribution:** Maps keystrokes to specific patterns and updates stats in `core`.
+- **`main.ts`:** Entry point.
+  - Initializes `TypingEngine`, `BatchRenderer`, and `HeatmapRenderer`.
+  - Manages UI event listeners (sidebar, settings, sliders).
+  - Subscribes to engine state changes to update the DOM (including manual stats updates).
 
 ---
 
-## 7\. Word generator (The "Flow" Engine)
+## 3. Core Algorithms
 
-**Algorithm: Priority-Weighted Interleaving**
-The generator must not just output dense, difficult words. It must maintain rhythm.
+### Word Generation & Pattern Selection
 
-1.  **Input:** `TopPatterns` (from Bandit).
-2.  **Ratio Check:** Target a 70/30 split between "Target Words" and "Flow Words".
-    - **Flow Words:** Top 100 most common words (e.g., "the", "and", "is"). Used to reset hand position and confidence.
-    - **Target Words:** Words containing the `TopPatterns`.
-3.  **Search:** Query the Inverted Index for words containing the target patterns.
-    - _Constraint:_ Avoid "Toxic Clusters" (words containing multiple high-uncertainty patterns at once) in early levels.
-    - _Constraint:_ Variation. If target is `th`, ensure a mix of Prefix (`th`e), Infix (o`th`er), and Suffix (wi`th`).
-4.  **Buffer:** Maintain a generic "History Buffer" (last 20 words) to prevent immediate repetition.
+The engine operates in **Batches** (default 10 words). For each batch:
 
-**Focus Mode Implementation:**
-When strict focus is enabled (currently default):
+1.  **Select Target Pattern:**
+    - **Reinforced Mode:** Weighted random selection. Weaker patterns (higher latency) have higher weight.
+    - **Sequential Mode:** Sorts patterns by mastery (ascending) and picks the weakest non-mastered pattern.
+2.  **Generate Words:**
+    - Queries the `Indexer` for words containing the target pattern.
+    - Randomly selects words from that list to fill the batch.
 
-- Select ONLY the #1 top-scoring pattern.
-- Generator forces 100% of words in the batch to match this pattern.
-- Fallbacks to flow words only occur if the database has no unique words left for that pattern.
-
----
-
-## 8\. Measurement & Attribution (Critical)
+### Latency Attribution
 
 **Metric:** Inter-Key Stroke Interval (IKSI).
 
-**Rules:**
+- **Events:** KeyDown events.
+- **Logic:**
+  1.  **Skip First Char:** The first character of a word is "Reading Time", not "Motor Time". It is ignored.
+  2.  **Outlier Filter:** Latencies > 2000ms are discarded (assumed distraction).
+  3.  **Multi-Pattern Update:** A single keystroke updates multiple patterns:
+      - **Unigram:** The character itself.
+      - **Bigram:** The pair `(PrevChar + Char)`.
+      - **Trigram:** The triplet `(PrevPrevChar + PrevChar + Char)`.
 
-1.  **Startup Exception:** **Discard** the latency of the first keystroke of every word. This is "Reading Time," not "Motor Time."
-2.  **Outlier Cap:** Discard any interval $> 2000ms$ (Distraction filter).
-3.  **Strict Attribution:**
-    - Event: `Key[n]` down.
-    - Delta: `Time[n] - Time[n-1]`.
-    - Attribution: This delta belongs **exclusively** to the bigram `(Char[n-1] -> Char[n])`.
-    - _Do not average latency across the word._
+### Mastery Scoring
 
-**Handling Errors:**
-
-- If a typo is made, the error is immediately recorded (incrementing the Beta failure count for that pattern).
-- **Latency Invalidation:** A `latencyInvalidated` flag is set upon error. The subsequent correct keystroke for that character will **not** record a latency sample. This ensures "Error Recovery Time" does not pollute the speed metrics.
-- Latency measurement resumes only after a successful, un-invalidated keystroke.
-
----
-
-## 9\. Persistence & performance
-
-- Keep in-memory caches for `PatternStat` for hot patterns (top 200).
-- Use `requestIdleCallback` to sync stats to IndexedDB.
-- Keep memory footprint small (\< 5MB).
+- **Target Latency:** Calculated from Target WPM.
+  - `MS_PER_CHAR = 60000 / (TARGET_WPM * 5)`
+- **Score:** `(TargetLatency / ActualEWMA) * 100`.
+- **Threshold:** A score >= 98 is considered "Mastered".
 
 ---
 
-## 10\. Session lifecycle
+## 4. Data Persistence
 
-1.  **Warm-up:** First 10 words are always "Flow Words" (common English) to calibrate baseline WPM.
-2.  **Live Loop:**
-    - Bandit requests patterns.
-    - Generator yields stream.
-    - UI renders.
-    - User types.
-    - Measurement updates stats.
-    - Bandit refines belief.
-3.  **Cooldown:** End session with a summary of "Most Improved Pattern."
+- **Database:** `rlytype_db` (Version 1)
+- **Stores:**
+  - `patterns`: Key path `id`. Stores performance history.
+  - `config`: Key-value store for user settings.
+- **Sync:** Stats are saved to IndexedDB immediately upon update (debouncing strategy may be added later).
 
 ---
 
-## 11\. UI behaviour / UX rules
+## 5. Usage & Extension
 
-**The "Batch" View:**
-
-- **Layout:** Paragraph view with text wrapping (replacing horizontal scroll).
-- **Look-ahead:** Render fixed page size (10 words, matching engine batch). Refresh only when page is complete.
-- **Target Highlighting:**
-  - The UI must know _why_ a word was chosen.
-  - Example: If "Father" was chosen for `th`, render `Fa`**`th`**`er`.
-  - Use a subtle color shift (e.g., slate-blue) for the target bigram. Do not use distracting animations.
-- **Feedback:**
-  - **Live Stats Dashboard:** Displays WPM, Accuracy, and Top Bottleneck (Slowest Pattern) in real-time.
-  - **Pattern Heatmap:** A grid displaying the score of all practiced patterns (filtered for n >= 3). Updates only on batch completion to prevent visual noise.
-  - Discrete error flash (red character) on typo. Cursor does not block; user must correct or move on (configurable).
-
----
-
-## 12\. TypeScript pseudocode: selection and update
-
-```ts
-// core/bandit.ts (simplified)
-function selectTopPatterns(allStats: PatternStat[], k = 3) {
-  const target = settings.targetLatency;
-  return allStats
-    .map((p) => {
-      // 1. Thompson Sampling
-      const sampleLatency = sampleNormal(p.ewmaLatency, effectiveVar(p));
-
-      // 2. Weakness (Gap)
-      const gap = Math.max(0, sampleLatency - target);
-
-      // 3. Time Decay (Spaced Repetition)
-      const timeBoost = timeBoostFunc(Date.now() - p.lastSeen);
-
-      // 4. Mastery Detection
-      // If error rate is negligible and we are confident, suppress it.
-      const isMastered =
-        p.errorAlpha / (p.errorAlpha + p.errorBeta) > 0.99 && p.ewmaVariance < LOW_VAR_THRESHOLD;
-      const masteryPenalty = isMastered ? 1000 : 0;
-
-      const score =
-        settings.w_unc * Math.sqrt(p.ewmaVariance) +
-        settings.w_weak * gap +
-        settings.w_time * timeBoost -
-        masteryPenalty;
-
-      return { id: p.id, score };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, k)
-    .map((x) => x.id);
-}
-```
-
----
-
-## 13\. Testing strategy
-
-- **Core:** Unit tests for `extractPatternsForWord` ensuring correct indices.
-- **Attribution:** Integration test simulating a keystroke stream (including pauses and backspaces) and verifying the correct bigrams receive the `latency` and `error` updates.
-- **Generator:** "Fuzz" test the generator to ensure it never returns `undefined` or endless loops, even with rare pattern requests.
-  Use Vitest for all unit and integration tests to align with the Vite ecosystem. Configure jsdom for packages/storage and packages/ui to simulate browser environments.
-
----
-
-## 14\. Metrics & telemetry (local-only)
-
-- **Heatmap:** Visual keyboard map showing latency hotspots.
-- **Top Bottlenecks:** List of "Worst 5 Patterns" impacting global speed.
-- **Trend:** Graph showing Latency reduction over Time for specific targeted patterns.
-
----
-
-## 15\. Implementation Status (As of Jan 2026)
-
-### Completed
-
-- [x] Monorepo Structure (Turbo + NPM)
-- [x] `packages/types` (Shared interfaces)
-- [x] `packages/core` (Bandit, Stats, Patterns)
-- [x] `packages/storage` (IndexedDB persistence)
-- [x] `packages/generator` (Inverted Index, Word Selection)
-- [x] `packages/ui` (Vanilla DOM `BatchRenderer`, `StatsRenderer`)
-- [x] `apps/frontend` (Vite, Main Loop, Keyboard Handling)
-- [x] **Refactor:** Removal of React dependencies (Pure Vanilla TS).
-- [x] **Feature:** Static Paragraph View (Text Wrapping, Page-based refresh).
-- [x] **Feature:** Live Statistics (WPM, Accuracy, Bottleneck).
-- [x] **Feature:** Strict Focus Mode (100% density for top pattern).
-- [x] **Feature:** Visual Pattern Heatmap (Grid view, color-coded by score).
-- [x] **Refactor:** Synchronized Batch Size (10 words) across Engine and UI.
-- [x] **Refinement:** Latency Invalidation (Discarding recovery time after errors).
-- [x] **Feature:** Error Rate Scoring (Bandit prioritizes sloppy patterns).
-- [x] **Feature:** Auto-Tuning Target Latency (Adapts to user's WPM, set to 5% faster than average).
-- [x] **Feature:** Biomechanical Leniancy (15% discount for same-finger jumps).
-- [x] **Refinement:** Heatmap Absolute Scaling (Fixed color thresholds).
-- [x] **Refinement:** Batch-based WPM Calculation (No idle decay).
-- [x] **Feature:** **Progression System** (Unigram -> Bigram -> Trigram unlocking).
-- [x] **Feature:** **Sequential Drill Mode** (Target specific patterns linearly).
-- [x] **UI:** **Adaptive Dashboard** (Satellite Grid for Bigrams, Mastery Queue list).
-- [x] **UI:** **Unified Yellow Theme** (Yellow accents for sliders, badges, cursors).
-
-### Pending / Next Steps
-
-- [ ] Unit Tests (Vitest) for Core logic.
-- [ ] Offline PWA capability (Service Worker).
-
----
-
-## 16\. Implementation constraints & best practices
-
-- **Deterministic Seeds:** For testing the Bandit, allow seeding the random number generator.
-- **Lazy Loading:** `words.json` might be large. Load it asynchronously.
-- **Security:** Do not send keystrokes to any remote server.
-
----
-
-## 17\. Acceptance criteria
-
-- [x] App runs offline.
-- [x] Bandit visibly adapts: consistently failing a pattern causes it to appear more often.
-- [x] Generator never outputs nonsense (unless in explicit "Drill Mode").
-- [x] "Startup Latency" (first char) is successfully ignored in stats.
-- [x] UI displays words in batches (Page View).
-
----
-
-## 18. New Feature: Progression & Modes
-
-**Goal:** Implement a structured learning path (Unigram -> Bigram -> Trigram) and a specialized "Sequential" drill mode.
-
-### Requirements
-
-1.  **Pattern Types:**
-    - **Unigrams:** Single characters (a, b, c...).
-    - **Bigrams:** Two characters (th, he, in...).
-    - **Trigrams:** Three characters (the, ing, ion...).
-2.  **Progression System (Unlock Logic):**
-    - Users start at **Unigram** stage.
-    - **Unlock Condition:** 85% of patterns in the current stage must meet the `Target Latency` (derived from user's goal WPM).
-    - Bigrams unlock only after Unigrams are 85% mastered.
-    - Trigrams unlock only after Bigrams are 85% mastered.
-3.  **Modes:**
-    - **Reinforced (Default):** The existing Bandit algorithm (Weighted exploration/exploitation).
-    - **Sequential:** "Fix-it" mode. Identifies the _single slowest_ pattern in the current active stage and drills it exclusively until it meets the target. Then moves to the next slowest.
-
-### Implementation Tasks
-
-#### Packages/Core
-
-- [x] **Pattern Extraction:** Update `extractPatternsForWord` to explicitly return Unigrams (all chars) and Trigrams (all 3-char sequences).
-- [x] **Progression Logic:**
-  - Create `ProgressionManager` or helper functions.
-  - Implement `calculateStageMastery(stats, stage, targetLatency) -> percentage`.
-  - Implement `checkUnlockStatus(stats, targetLatency) -> currentMaxStage`.
-- [x] **Sequential Selector:**
-  - Implement `selectNextSequentialPattern(stats, stage, targetLatency)`.
-  - Logic: Filter patterns by `stage`. Sort by `latency - target`. Pick top 1.
-
-#### Packages/Generator
-
-- [x] **Indexer Update:** Ensure `WordIndexer` builds indices for Unigrams and Trigrams so they can be targeted specifically.
-- [x] **Generator Update:**
-  - Support "Unigram Targeting" (Ensure words contain the specific char).
-  - Support "Trigram Targeting" (Ensure words contain the specific trigram).
-
-#### Packages/Types
-
-- [x] **Update Interfaces:**
-  - Add `Stage` type (`'unigram' | 'bigram' | 'trigram'`).
-  - Add `LearningMode` type (`'reinforced' | 'sequential'`).
-  - Update `EngineState` to include `currentStage`, `stageMastery`, and `lockedStages`.
-
-#### Apps/Frontend (Engine)
-
-- [x] **State Management:**
-  - Track `learningMode` (from UI toggle).
-  - Track `currentStage` (Unigram/Bigram/Trigram).
-  - **Auto-Promotion:** If in "Auto" mode, engine should automatically advance stage when unlock condition is met.
-- [x] **Word Generation Integration:**
-  - Pass `stage` and `mode` to the pattern selector.
-  - If `mode === 'sequential'`, use `selectNextSequentialPattern`.
-  - If `mode === 'reinforced'`, use Bandit but filter candidates by `currentStage`.
-- [x] **Stage Enforcement:**
-  - Automatically downgrade to unlocked stage if WPM increase locks current stage.
-
-#### Apps/Frontend (UI)
-
-- [x] **Sidebar/Header:**
-  - Update Mode Selectors to show **Lock Icons** for Bigram/Trigram if criteria not met.
-  - Add **Progress Bars** under each stage label showing the % towards 85%.
-- [x] **Strategy Toggles:**
-  - Ensure "Reinforced" vs "Sequential" toggles update the engine state.
-- [x] **Feedback:**
-  - When a new stage unlocks, show a toast/notification.
-  - In Sequential mode, clearly display "Drilling [Pattern]: [Current Speed] / [Target]".
+- **Adding Features:** Logic should be placed in `packages/core` if pure, or `apps/frontend/src/engine.ts` if stateful/orchestrational.
+- **New Renderers:** Add to `packages/ui` and instantiate in `main.ts`.
+- **Modifying Stats:** Update `packages/core/src/stats.ts` and ensure `types` package reflects changes.
