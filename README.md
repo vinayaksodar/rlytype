@@ -8,7 +8,8 @@ Most typing tutors focus on words or random characters. **RlyType** treats words
 
 ## Application Images
 
-![Screenshot](docs/images/screenshot.png)
+![Screenshot](docs/images/unigram.png)
+![Screenshot](docs/images/bigram.png)
 
 ## How it Works
 
