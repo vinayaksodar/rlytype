@@ -1,5 +1,21 @@
 /* --- Sidebar Components --- */
 
+.sidebar-brand {
+  padding: 1.5rem 1.5rem 0.5rem;
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-highlight);
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  /* gap: 0.5rem; */
+}
+
+.sidebar-brand span {
+  color: var(--accent-yellow);
+}
+
 .sidebar-section {
   padding: 1.5rem;
   border-bottom: 1px solid var(--border-subtle);
