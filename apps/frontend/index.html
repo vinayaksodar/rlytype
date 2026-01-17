@@ -20,10 +20,10 @@
           </div>
           <div class="strategy-info">
             <p id="desc-reinforced" class="strategy-desc">
-              Bandit method targeting patterns for fastest overall growth.
+              Dynamically target weaker patterns more for fastest overall growth.
             </p>
             <p id="desc-sequential" class="strategy-desc" style="display: none">
-              Focus on fixing your slowest bottlenecks first.
+              Pick the current weakest pattern and train till you reach mastery.
             </p>
           </div>
         </div>
@@ -103,37 +103,27 @@
             <div style="opacity: 0.3">Initializing Engine...</div>
           </div>
 
-                    <!-- Dynamic Stats Card -->
+          <!-- Dynamic Stats Card -->
 
-                    <div id="stats-pill">
+          <div id="stats-pill">
+            <div class="stat-group">
+              <span class="stat-label">Session fWPM</span>
 
-                      <div class="stat-group">
+              <span class="stat-value" id="stat-wpm">--</span>
+            </div>
 
-                        <span class="stat-label">Session fWPM</span>
+            <div class="stat-group">
+              <span class="stat-label">Current Pattern</span>
 
-                        <span class="stat-value" id="stat-wpm">--</span>
+              <span class="stat-value" id="stat-pattern">--</span>
+            </div>
 
-                      </div>
+            <div class="stat-group">
+              <span class="stat-label">Accuracy</span>
 
-                      <div class="stat-group">
-
-                        <span class="stat-label">Current Pattern</span>
-
-                        <span class="stat-value" id="stat-pattern">--</span>
-
-                      </div>
-
-                      <div class="stat-group">
-
-                        <span class="stat-label">Accuracy</span>
-
-                        <span class="stat-value" id="stat-acc">--</span>
-
-                      </div>
-
-                    </div>
-
-          
+              <span class="stat-value" id="stat-acc">--</span>
+            </div>
+          </div>
         </section>
 
         <!-- ADAPTIVE FOOTER -->
@@ -141,7 +131,14 @@
         <footer id="adaptive-footer">
           <!-- Footer Toggle -->
           <button id="footer-toggle" title="Toggle Dashboard">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
