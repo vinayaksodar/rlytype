@@ -99,13 +99,12 @@ export class HeatmapRenderer {
     chart.classList.add("mastery-chart");
 
     // Buckets based on Mastery %
-    const buckets = { Volatile: 0, Uncertain: 0, Stable: 0, Mastered: 0 };
+    const buckets = { "Needs Practice": 0, "Building Speed": 0, Mastered: 0 };
 
     patterns.forEach((p) => {
-      if (p.mastery >= 98) buckets.Mastered++;
-      else if (p.mastery >= 75) buckets.Stable++;
-      else if (p.mastery >= 40) buckets.Uncertain++;
-      else buckets.Volatile++;
+      if (p.mastery >= 95) buckets.Mastered++;
+      else if (p.mastery >= 60) buckets["Building Speed"]++;
+      else buckets["Needs Practice"]++;
     });
 
     const maxVal = Math.max(...Object.values(buckets));
@@ -121,9 +120,8 @@ export class HeatmapRenderer {
       bar.style.height = `${Math.max(4, height)}%`; // Min height for visibility
 
       // Color coding - Using simplified brand scale
-      if (label === "Volatile") bar.style.backgroundColor = "rgb(244, 63, 94)"; // --accent-rose
-      if (label === "Uncertain") bar.style.backgroundColor = "rgb(234, 179, 8)"; // --accent-yellow
-      if (label === "Stable") bar.style.backgroundColor = "rgb(16, 185, 129)"; // --accent-emerald
+      if (label === "Needs Practice") bar.style.backgroundColor = "rgb(244, 63, 94)"; // --accent-rose
+      if (label === "Building Speed") bar.style.backgroundColor = "rgb(234, 179, 8)"; // --accent-yellow
       if (label === "Mastered") bar.style.backgroundColor = "rgb(16, 185, 129)"; // --accent-emerald
 
       const lbl = document.createElement("span");
