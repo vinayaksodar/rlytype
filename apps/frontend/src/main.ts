@@ -49,6 +49,7 @@ const heatmapRenderer = new HeatmapRenderer(visualizerContainer);
 let lastTargetWpm = -1;
 let lastStage: Stage | null = null;
 let lastWordIndex = -1;
+let lastLanguage = "";
 let targetWpm = 80; // Default
 
 // Initialize UI with defaults
@@ -164,11 +165,12 @@ engine.subscribe((state) => {
     }
   });
 
-  // 6. Update Heatmap (When a new batch starts OR when target wpm or stage changes)
+  // 6. Update Heatmap (When a new batch starts OR when target wpm, stage, or language changes)
   if (
     (state.activeWordIndex === 0 && lastWordIndex !== 0) ||
     state.meta.targetWpm !== lastTargetWpm ||
-    state.meta.currentStage !== lastStage
+    state.meta.currentStage !== lastStage ||
+    state.meta.language !== lastLanguage
   ) {
     // Capitalize for renderer
     const modeCap = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
@@ -179,6 +181,7 @@ engine.subscribe((state) => {
 
     lastTargetWpm = state.meta.targetWpm;
     lastStage = state.meta.currentStage;
+    lastLanguage = state.meta.language;
 
     // Update Mastery Queue
     updateMasteryQueue();

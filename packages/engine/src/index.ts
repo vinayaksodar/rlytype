@@ -111,7 +111,7 @@ export class TypingEngine {
   setLanguage(language: string) {
     this.state.meta.language = language;
     this.saveConfig();
-    // No notify needed here as this is usually called after init(words) or concurrently
+    this.notify();
   }
 
   setStage(stage: Stage) {
