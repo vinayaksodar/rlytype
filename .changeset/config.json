@@ -1,0 +1,20 @@
+{
+  "$schema": "https://unpkg.com/@changesets/config@3.1.2/schema.json",
+  "changelog": "@changesets/cli/changelog",
+  "commit": false,
+  "fixed": [
+    [
+      "frontend",
+      "@rlytype/ui",
+      "@rlytype/types",
+      "@rlytype/core",
+      "@rlytype/storage",
+      "@rlytype/generator",
+      "@rlytype/engine"
+    ]
+  ],
+  "access": "restricted",
+  "baseBranch": "main",
+  "updateInternalDependencies": "patch",
+  "ignore": []
+}
