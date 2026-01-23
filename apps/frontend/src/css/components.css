@@ -594,8 +594,6 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* --- Mastery Widget (Header) --- */
 .mastery-widget {
-  position: absolute;
-  right: 2rem;
   width: 180px;
   display: flex;
   flex-direction: column;

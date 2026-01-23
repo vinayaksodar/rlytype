@@ -119,55 +119,61 @@
       <main id="main-stage">
         <!-- HEADER -->
         <header id="cockpit-header">
-          <!-- Sidebar Toggle (Visual Only for now) -->
-          <button
-            id="sidebar-toggle"
-            aria-label="Toggle Sidebar"
-            style="
-              position: absolute;
-              left: 1rem;
-              background: none;
-              border: none;
-              color: var(--text-muted);
-              cursor: pointer;
-            "
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+          <!-- Left: Sidebar Toggle -->
+          <div style="display: flex; align-items: center; justify-content: flex-start;">
+            <button
+              id="sidebar-toggle"
+              aria-label="Toggle Sidebar"
+              style="
+                background: none;
+                border: none;
+                color: var(--text-muted);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+              "
             >
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
-          </button>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
+          </div>
 
-          <!-- Mode Selector -->
-          <div class="mode-selector">
-            <div class="mode-item active">
-              <span class="mode-label">Unigram</span>
-              <div class="mode-ring"></div>
-            </div>
-            <div class="mode-item">
-              <span class="mode-label">Bigram</span>
-              <div class="mode-ring"></div>
-            </div>
-            <div class="mode-item">
-              <span class="mode-label">Trigram</span>
-              <div class="mode-ring"></div>
+          <!-- Center: Mode Selector -->
+          <div style="display: flex; justify-content: center;">
+            <div class="mode-selector" id="mode-selector">
+              <div class="mode-item active">
+                <span class="mode-label">Unigram</span>
+                <div class="mode-ring"></div>
+              </div>
+              <div class="mode-item">
+                <span class="mode-label">Bigram</span>
+                <div class="mode-ring"></div>
+              </div>
+              <div class="mode-item">
+                <span class="mode-label">Trigram</span>
+                <div class="mode-ring"></div>
+              </div>
             </div>
           </div>
 
-          <!-- Mastery Widget -->
-          <div class="mastery-widget">
-            <div class="mastery-info">
-              <span class="mastery-label" id="mastery-label">Mastery</span>
-              <span class="mastery-value" id="mastery-percent">0%</span>
-            </div>
-            <div class="mastery-track">
-              <div class="mastery-fill" id="mastery-bar" style="width: 0%"></div>
+          <!-- Right: Mastery Widget -->
+          <div style="display: flex; justify-content: flex-end;">
+            <div class="mastery-widget" id="mastery-widget">
+              <div class="mastery-info">
+                <span class="mastery-label" id="mastery-label">Mastery</span>
+                <span class="mastery-value" id="mastery-percent">0%</span>
+              </div>
+              <div class="mastery-track">
+                <div class="mastery-fill" id="mastery-bar" style="width: 0%"></div>
+              </div>
             </div>
           </div>
         </header>

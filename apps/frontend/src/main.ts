@@ -327,37 +327,51 @@ const tourSteps: TourStep[] = [
     position: "center",
   },
   {
+    elementId: "mode-selector",
+    title: "Learning Stage",
+    content:
+      "Switch between ngrams i.e Unigrams (letters), Bigrams (pairs), and Trigrams (triplets) to target different levels of muscle memory.",
+    position: "bottom",
+  },
+  {
+    elementId: "mastery-widget",
+    title: "Overall Mastery",
+    content:
+      "What percentage of patterns in the selected ngram type have hit target wpm. Master every pattern to hit 100%!",
+    position: "bottom",
+  },
+  {
     elementId: "sidebar",
     title: "Command Center",
     content:
-      "Configure your training here. Choose 'Reinforced' to target weaknesses or 'Sequential' for structured learning. Set your Target Words per minute to push your limits.",
+      "Configure your training here. Choose 'Reinforced' to target weaknesses dynamically or 'Sequential' to pick the current weakest and drill it till you hit your target WPM. Set your Target Words per minute to push your limits.",
     position: "right",
   },
   {
     elementId: "language-selector",
     title: "Language Selector",
-    content: "Choose from a variety of languages and programming modes to practice with.",
+    content: "Choose from a variety of languages/wordsets to practice with.",
     position: "bottom",
   },
   {
     elementId: "hero-stage",
     title: "The Stage",
     content:
-      "This is where you type. Focus on flow and rhythm. The engine will analyze every keystroke.",
-    position: "bottom",
+      "This is where you type.The engine will analyze every keystroke. Initally you may see a lot of repeated words as a random rare pattern may be chosen but more frequent patterns bubble up naturally as you keep practicing.",
+    position: "left",
   },
   {
     elementId: "stats-pill",
     title: "Live Stats",
     content:
-      "Monitor your Fluid WPM and Accuracy in real-time. 'Current Pattern' shows exactly which bigram or trigram triggered the current word.",
+      "Monitor your WPM and Accuracy in real-time. 'Current Pattern' shows exactly which bigram or trigram triggered the current word.",
     position: "top",
   },
   {
     elementId: "adaptive-footer",
     title: "Adaptive Insights",
     content:
-      "Open this panel to see your Mastery Queue (what needs work) and the Heatmap Visualizer (your brain's map of the keyboard).",
+      "Open this panel to see your Mastery Queue (which pattern is how far from your target WPM ) and the Adaptive Visualizer.",
     position: "top",
   },
 ];

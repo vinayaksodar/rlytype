@@ -73,10 +73,13 @@ export class OnboardingTour {
     // 1. Cleanup previous highlights
     document.querySelectorAll(".tour-highlight").forEach((el) => {
       el.classList.remove("tour-highlight");
-      (el as HTMLElement).style.removeProperty("position");
-      // Remove inline styles we might have added?
-      // Ideally we shouldn't mess too much with existing styles.
-      // The CSS handles highlighting via box-shadow.
+      const originalPosition = (el as HTMLElement).dataset.originalPosition;
+      if (originalPosition) {
+        (el as HTMLElement).style.position = originalPosition;
+        delete (el as HTMLElement).dataset.originalPosition;
+      } else {
+        (el as HTMLElement).style.removeProperty("position");
+      }
     });
 
     // 2. Locate target
@@ -108,9 +111,12 @@ export class OnboardingTour {
 
     // 5. Positioning
     if (targetEl) {
+      const computedStyle = window.getComputedStyle(targetEl);
+      if (computedStyle.position === "static") {
+        targetEl.dataset.originalPosition = targetEl.style.position || "";
+        targetEl.style.position = "relative";
+      }
       targetEl.classList.add("tour-highlight");
-      // Ensure the element has a position context for z-index to work with the overlay (sometimes needed)
-      // But our CSS sets z-index !important
       this.positionTooltip(targetEl, step.position || "bottom");
     } else {
       // Center modal
@@ -183,9 +189,16 @@ export class OnboardingTour {
     setTimeout(() => {
       this.overlay.remove();
       this.tooltip.remove();
-      document
-        .querySelectorAll(".tour-highlight")
-        .forEach((el) => el.classList.remove("tour-highlight"));
+      document.querySelectorAll(".tour-highlight").forEach((el) => {
+        el.classList.remove("tour-highlight");
+        const originalPosition = (el as HTMLElement).dataset.originalPosition;
+        if (originalPosition) {
+          (el as HTMLElement).style.position = originalPosition;
+          delete (el as HTMLElement).dataset.originalPosition;
+        } else {
+          (el as HTMLElement).style.removeProperty("position");
+        }
+      });
     }, 300);
 
     localStorage.setItem(this.storageKey, "true");

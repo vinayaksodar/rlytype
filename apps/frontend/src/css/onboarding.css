@@ -22,12 +22,26 @@
 /* The Spotlight: A transparent hole or highlighted area */
 /* We will use a class to elevate the target element above the overlay */
 .tour-highlight {
-  position: relative;
   z-index: 9999 !important;
-  box-shadow: 0 0 0 4px var(--accent-yellow), 0 0 0 5000px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 0 30px rgba(234, 179, 8, 0.2), 0 0 0 4px var(--accent-yellow), 0 0 0 5000px rgba(0, 0, 0, 0.85);
   border-radius: 8px;
   pointer-events: none; /* Prevent interaction during tour? Or allow? Usually prevent. */
-  background: var(--bg-main); /* Ensure it's opaque */
+  background: var(--surface-panel) !important; /* Slightly lighter surface to pop from bg */
+}
+
+/* Ensure text inside the highlight is readable */
+.tour-highlight .mastery-label,
+.tour-highlight .stat-label,
+.tour-highlight .mode-label,
+.tour-highlight .sidebar-title {
+  color: var(--text-main) !important;
+  opacity: 1 !important;
+}
+
+.tour-highlight .mastery-value,
+.tour-highlight .stat-value,
+.tour-highlight .mode-label {
+  color: var(--text-highlight) !important;
 }
 
 /* Tooltip Box */
