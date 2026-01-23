@@ -219,7 +219,6 @@ input[type="range"]::-webkit-slider-runnable-track {
   font-size: 2.5rem;
   line-height: 1.6;
   width: 80%;
-  max-width: 900px;
   text-align: center;
   position: relative;
   /* batch renderer will inject content here */
