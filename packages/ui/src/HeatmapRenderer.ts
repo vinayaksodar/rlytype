@@ -52,32 +52,20 @@ export class HeatmapRenderer {
     const grid = document.createElement("div");
     grid.classList.add("unigram-grid");
 
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-    const charScores: Record<string, number> = {};
-
-    // Check if we have explicit unigram stats (length === 1)
+    // Dynamic alphabet from patterns
+    // Filter for unigrams just to be safe, though stage="unigram" implies it.
     const explicitUnigrams = patterns.filter((p) => p.id.length === 1);
 
-    if (explicitUnigrams.length > 0) {
-      explicitUnigrams.forEach((p) => {
-        charScores[p.id] = p.mastery;
-      });
-    } else {
-      // Fallback: Aggregation not really needed if engine provides all patterns,
-      // but keep for safety if patterns are mixed.
-      // Actually engine provides what is requested.
-      patterns.forEach((p) => {
-        if (p.id.length === 1) charScores[p.id] = p.mastery;
-      });
-    }
+    // Sort alphabetically
+    explicitUnigrams.sort((a, b) => a.id.localeCompare(b.id));
 
-    for (const char of alphabet) {
+    for (const item of explicitUnigrams) {
       const node = document.createElement("div");
       node.classList.add("unigram-node");
-      node.textContent = char.toUpperCase();
+      node.textContent = item.id.toUpperCase();
 
-      if (charScores[char] > 0) {
-        node.style.backgroundColor = this.getModernColor(charScores[char]);
+      if (item.mastery > 0) {
+        node.style.backgroundColor = this.getModernColor(item.mastery);
         node.style.color = "#fff";
       }
 
