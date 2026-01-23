@@ -334,6 +334,12 @@ const tourSteps: TourStep[] = [
     position: "right",
   },
   {
+    elementId: "language-selector",
+    title: "Language Selector",
+    content: "Choose from a variety of languages and programming modes to practice with.",
+    position: "bottom",
+  },
+  {
     elementId: "hero-stage",
     title: "The Stage",
     content:
