@@ -238,6 +238,10 @@ input[type="range"]::-webkit-slider-runnable-track {
   /* No Focus Bar */
 }
 
+.word.completed .char {
+  color: var(--text-highlight);
+}
+
 .char {
   position: relative;
   transition: color 0.1s;
