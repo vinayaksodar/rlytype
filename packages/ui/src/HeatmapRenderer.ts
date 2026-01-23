@@ -41,9 +41,9 @@ export class HeatmapRenderer {
     if (mode === "Unigram") {
       this.renderUnigram(patterns);
     } else if (mode === "Trigram") {
-      this.renderTrigram(patterns);
+      this.renderBuckets(patterns, "trigram-view");
     } else {
-      this.renderBigram(patterns);
+      this.renderBuckets(patterns, "bigram-view");
     }
   }
 
@@ -86,8 +86,8 @@ export class HeatmapRenderer {
     this.container.appendChild(grid);
   }
 
-  private renderTrigram(patterns: HeatmapItem[]) {
-    this.container.classList.add("trigram-view");
+  private renderBuckets(patterns: HeatmapItem[], viewClass: string) {
+    this.container.classList.add(viewClass);
     const chart = document.createElement("div");
     chart.classList.add("mastery-chart");
 
@@ -137,61 +137,5 @@ export class HeatmapRenderer {
     });
 
     this.container.appendChild(chart);
-  }
-
-  private renderBigram(patterns: HeatmapItem[]) {
-    // Satellite View Logic with Headers
-    this.container.classList.add("bigram-view");
-    const grid = document.createElement("div");
-    grid.classList.add("satellite-grid");
-
-    const patternMap = new Map<string, HeatmapItem>();
-    patterns.forEach((p) => {
-      patternMap.set(p.id, p);
-    });
-
-    const alphabet = "abcdefghijklmnopqrstuvwxyz";
-
-    // 1. Corner
-    const corner = document.createElement("div");
-    corner.classList.add("satellite-header");
-    grid.appendChild(corner);
-
-    // 2. Top Headers
-    for (const char of alphabet) {
-      const header = document.createElement("div");
-      header.classList.add("satellite-header");
-      header.textContent = char.toUpperCase();
-      grid.appendChild(header);
-    }
-
-    // 3. Rows
-    for (let i = 0; i < alphabet.length; i++) {
-      const char1 = alphabet[i];
-
-      // Left Header
-      const rowHeader = document.createElement("div");
-      rowHeader.classList.add("satellite-header");
-      rowHeader.textContent = char1.toUpperCase();
-      grid.appendChild(rowHeader);
-
-      // Cells
-      for (let j = 0; j < alphabet.length; j++) {
-        const char2 = alphabet[j];
-        const bigram = char1 + char2;
-        const p = patternMap.get(bigram);
-
-        const el = document.createElement("div");
-        el.classList.add("satellite-node");
-
-        if (p && p.mastery > 0) {
-          el.title = `${bigram}: ${Math.round(p.mastery)}%`;
-          el.style.backgroundColor = this.getModernColor(p.mastery);
-        }
-
-        grid.appendChild(el);
-      }
-    }
-    this.container.appendChild(grid);
   }
 }
