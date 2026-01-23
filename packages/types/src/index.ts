@@ -27,6 +27,7 @@ export interface EngineState {
     targetWpm: number;
     learningMode: LearningMode;
     currentStage: Stage;
+    language: string;
   };
   isLoaded: boolean;
 }
@@ -35,4 +36,5 @@ export interface UserConfig {
   targetWpm: number;
   learningMode: LearningMode;
   currentStage: Stage;
+  language: string;
 }

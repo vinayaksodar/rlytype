@@ -243,31 +243,14 @@ function updateMasteryQueue() {
 // --- Language Selector ---
 const langSelect = document.getElementById("language-selector") as HTMLSelectElement;
 
-// Fetch available languages and init
-fetch("/languages.json")
-  .then((res) => res.json())
-  .then((languages: string[]) => {
-    // Populate select
-    languages.forEach((lang) => {
-      const option = document.createElement("option");
-      option.value = lang;
-      // Format: "english_10k.json" -> "english 10k"
-      option.textContent = lang.replace(".json", "").replace(/_/g, " ");
-      if (lang === "english_10k.json") option.selected = true;
-      langSelect.appendChild(option);
-    });
-
-    // Initial Load
-    loadLanguage("english_10k.json");
-  });
-
 const loadLanguage = async (filename: string) => {
   try {
     // 1. Check local DB cache
     const cachedWords = await storage.getLanguage(filename);
     if (cachedWords && cachedWords.length > 0) {
       console.log(`[Language] Loaded ${filename} from cache.`);
-      engine.init(cachedWords);
+      await engine.init(cachedWords);
+      engine.setLanguage(filename); // Sync engine state & persist config
       langSelect.blur();
       return;
     }
@@ -284,35 +267,44 @@ const loadLanguage = async (filename: string) => {
     await storage.saveLanguage(filename, words);
 
     // 4. Init engine
-    engine.init(words);
+    await engine.init(words);
+    engine.setLanguage(filename); // Sync engine state & persist config
     langSelect.blur();
   } catch (err) {
     console.error("Failed to load language:", err);
   }
 };
 
+// Fetch available languages and init
+(async () => {
+  // Ensure storage is ready before loading config
+  await storage.init();
+
+  const [languages, config] = await Promise.all([
+    fetch("/languages.json").then((res) => res.json() as Promise<string[]>),
+    storage.loadConfig(),
+  ]);
+
+  const initialLanguage = config?.language || "english_10k.json";
+
+  // Populate select
+  languages.forEach((lang) => {
+    const option = document.createElement("option");
+    option.value = lang;
+    // Format: "english_10k.json" -> "english 10k"
+    option.textContent = lang.replace(".json", "").replace(/_/g, " ");
+    if (lang === initialLanguage) option.selected = true;
+    langSelect.appendChild(option);
+  });
+
+  // Initial Load
+  loadLanguage(initialLanguage);
+})();
+
 langSelect.addEventListener("change", (e) => {
   const target = e.target as HTMLSelectElement;
   loadLanguage(target.value);
 });
-
-// Fetch available languages and init
-fetch("/languages.json")
-  .then((res) => res.json())
-  .then((languages: string[]) => {
-    // Populate select
-    languages.forEach((lang) => {
-      const option = document.createElement("option");
-      option.value = lang;
-      // Format: "english_10k.json" -> "english 10k"
-      option.textContent = lang.replace(".json", "").replace(/_/g, " ");
-      if (lang === "english_10k.json") option.selected = true;
-      langSelect.appendChild(option);
-    });
-
-    // Initial Load
-    loadLanguage("english_10k.json");
-  });
 
 // --- Global Key Listener ---
 window.addEventListener("keydown", (e) => {

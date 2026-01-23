@@ -35,6 +35,7 @@ export class TypingEngine {
       targetWpm: 80,
       learningMode: "reinforced",
       currentStage: "unigram",
+      language: "english_10k.json",
     },
     isLoaded: false,
   };
@@ -77,6 +78,7 @@ export class TypingEngine {
       this.state.meta.targetWpm = config.targetWpm;
       this.state.meta.learningMode = config.learningMode;
       this.state.meta.currentStage = config.currentStage;
+      this.state.meta.language = config.language || "english_10k.json";
     }
 
     this.updateStageMastery();
@@ -104,6 +106,12 @@ export class TypingEngine {
       this.updateStageMastery(); // Target changed, mastery changes
       this.notify();
     }
+  }
+
+  setLanguage(language: string) {
+    this.state.meta.language = language;
+    this.saveConfig();
+    // No notify needed here as this is usually called after init(words) or concurrently
   }
 
   setStage(stage: Stage) {
@@ -360,6 +368,7 @@ export class TypingEngine {
       targetWpm: this.state.meta.targetWpm,
       learningMode: this.state.meta.learningMode,
       currentStage: this.state.meta.currentStage,
+      language: this.state.meta.language,
     });
   }
 
