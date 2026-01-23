@@ -1,6 +1,7 @@
 import { inject } from "@vercel/analytics";
 import { TypingEngine } from "@rlytype/engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
+import { storage } from "@rlytype/storage";
 import { Stage, LearningMode } from "@rlytype/types";
 import { OnboardingTour, TourStep } from "./onboarding";
 
@@ -260,20 +261,34 @@ fetch("/languages.json")
     loadLanguage("english_10k.json");
   });
 
-const loadLanguage = (filename: string) => {
-  // Show loading state if needed, or just let engine notify
-  fetch(`/languages/${filename}`)
-    .then((res) => res.json())
-    .then((data) => {
-      // Support both { words: [] } and raw [] formats
-      const words = Array.isArray(data) ? data : data.words;
-      engine.init(words);
-      // Blur to return focus to body
+const loadLanguage = async (filename: string) => {
+  try {
+    // 1. Check local DB cache
+    const cachedWords = await storage.getLanguage(filename);
+    if (cachedWords && cachedWords.length > 0) {
+      console.log(`[Language] Loaded ${filename} from cache.`);
+      engine.init(cachedWords);
       langSelect.blur();
-    })
-    .catch((err) => {
-      console.error("Failed to load language:", err);
-    });
+      return;
+    }
+
+    // 2. Fetch from network
+    console.log(`[Language] Fetching ${filename}...`);
+    const res = await fetch(`/languages/${filename}`);
+    const data = await res.json();
+
+    // Support both { words: [] } and raw [] formats
+    const words = Array.isArray(data) ? data : data.words;
+
+    // 3. Save to cache
+    await storage.saveLanguage(filename, words);
+
+    // 4. Init engine
+    engine.init(words);
+    langSelect.blur();
+  } catch (err) {
+    console.error("Failed to load language:", err);
+  }
 };
 
 langSelect.addEventListener("change", (e) => {
