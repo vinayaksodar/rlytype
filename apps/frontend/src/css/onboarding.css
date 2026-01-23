@@ -1,0 +1,136 @@
+/* Onboarding Tour Styles */
+
+/* The dark overlay covering the screen */
+#tour-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 9998;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none; /* Allows clicks to pass through initially */
+}
+
+#tour-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The Spotlight: A transparent hole or highlighted area */
+/* We will use a class to elevate the target element above the overlay */
+.tour-highlight {
+  position: relative;
+  z-index: 9999 !important;
+  box-shadow: 0 0 0 4px var(--accent-yellow), 0 0 0 5000px rgba(0, 0, 0, 0.75);
+  border-radius: 8px;
+  pointer-events: none; /* Prevent interaction during tour? Or allow? Usually prevent. */
+  background: var(--bg-main); /* Ensure it's opaque */
+}
+
+/* Tooltip Box */
+.tour-tooltip {
+  position: absolute;
+  background: var(--surface-panel);
+  border: 1px solid var(--accent-yellow);
+  padding: 1.5rem;
+  border-radius: 8px;
+  width: 300px;
+  max-width: 90vw;
+  z-index: 10000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s ease;
+}
+
+.tour-tooltip.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.tour-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.tour-title {
+  font-family: var(--font-mono);
+  font-weight: bold;
+  color: var(--text-highlight);
+  font-size: 1.1rem;
+}
+
+.tour-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+  padding: 4px;
+}
+
+.tour-close:hover {
+  color: var(--accent-rose);
+}
+
+.tour-content {
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+}
+
+.tour-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tour-progress {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.tour-controls {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.tour-btn {
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  font-family: var(--font-mono);
+}
+
+.tour-btn-secondary {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+}
+
+.tour-btn-secondary:hover {
+  border-color: var(--text-highlight);
+  color: var(--text-highlight);
+}
+
+.tour-btn-primary {
+  background: var(--accent-yellow);
+  color: var(--bg-main);
+}
+
+.tour-btn-primary:hover {
+  background: #fbbf24; /* Lighter yellow */
+  box-shadow: 0 0 10px rgba(234, 179, 8, 0.4);
+}

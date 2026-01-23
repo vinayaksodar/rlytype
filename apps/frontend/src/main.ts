@@ -2,6 +2,7 @@ import { inject } from "@vercel/analytics";
 import { TypingEngine } from "@rlytype/engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
 import { Stage, LearningMode } from "@rlytype/types";
+import { OnboardingTour, TourStep } from "./onboarding";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -253,4 +254,53 @@ window.addEventListener("keydown", (e) => {
     if (e.key === " ") e.preventDefault();
     engine.handleKey(e.key);
   }
+});
+
+// --- Onboarding Tour ---
+const tourSteps: TourStep[] = [
+  {
+    title: "Welcome to RlyType",
+    content:
+      "An adaptive typing tutor designed to find and fix your weak points using pattern recognition. Let's show you around.",
+    position: "center",
+  },
+  {
+    elementId: "sidebar",
+    title: "Command Center",
+    content:
+      "Configure your training here. Choose 'Reinforced' to target weaknesses or 'Sequential' for structured learning. Set your Target Fluidity (WPM) to push your limits.",
+    position: "right",
+  },
+  {
+    elementId: "hero-stage",
+    title: "The Stage",
+    content:
+      "This is where you type. Focus on flow and rhythm. The engine will analyze every keystroke.",
+    position: "bottom",
+  },
+  {
+    elementId: "stats-pill",
+    title: "Live Stats",
+    content:
+      "Monitor your Fluid WPM and Accuracy in real-time. 'Current Pattern' shows exactly which bigram or trigram triggered the current word.",
+    position: "top",
+  },
+  {
+    elementId: "adaptive-footer",
+    title: "Adaptive Insights",
+    content:
+      "Open this panel to see your Mastery Queue (what needs work) and the Heatmap Visualizer (your brain's map of the keyboard).",
+    position: "top",
+  },
+];
+
+window.addEventListener("load", () => {
+  // Small delay to ensure everything is rendered
+  setTimeout(() => {
+    const tour = new OnboardingTour(tourSteps);
+    tour.start();
+
+    // Optional: Expose reset for testing/manual triggering
+    (window as unknown as { resetTour: () => void }).resetTour = () => tour.reset();
+  }, 1000);
 });
