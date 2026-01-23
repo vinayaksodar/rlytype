@@ -164,7 +164,7 @@ engine.subscribe((state) => {
     }
   });
 
-  // 6. Update Heatmap (When a new batch starts OR when target fluidity or stage changes)
+  // 6. Update Heatmap (When a new batch starts OR when target wpm or stage changes)
   if (
     (state.activeWordIndex === 0 && lastWordIndex !== 0) ||
     state.meta.targetWpm !== lastTargetWpm ||
@@ -327,7 +327,7 @@ const tourSteps: TourStep[] = [
     elementId: "sidebar",
     title: "Command Center",
     content:
-      "Configure your training here. Choose 'Reinforced' to target weaknesses or 'Sequential' for structured learning. Set your Target Fluidity (WPM) to push your limits.",
+      "Configure your training here. Choose 'Reinforced' to target weaknesses or 'Sequential' for structured learning. Set your Target Words per minute to push your limits.",
     position: "right",
   },
   {
