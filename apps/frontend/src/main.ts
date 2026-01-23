@@ -239,12 +239,64 @@ function updateMasteryQueue() {
   });
 }
 
-// --- Start Engine ---
-// Fetch words and init
-fetch("/words.json")
+// --- Language Selector ---
+const langSelect = document.getElementById("language-selector") as HTMLSelectElement;
+
+// Fetch available languages and init
+fetch("/languages.json")
   .then((res) => res.json())
-  .then((data) => {
-    engine.init(data.words);
+  .then((languages: string[]) => {
+    // Populate select
+    languages.forEach((lang) => {
+      const option = document.createElement("option");
+      option.value = lang;
+      // Format: "english_10k.json" -> "english 10k"
+      option.textContent = lang.replace(".json", "").replace(/_/g, " ");
+      if (lang === "english_10k.json") option.selected = true;
+      langSelect.appendChild(option);
+    });
+
+    // Initial Load
+    loadLanguage("english_10k.json");
+  });
+
+const loadLanguage = (filename: string) => {
+  // Show loading state if needed, or just let engine notify
+  fetch(`/languages/${filename}`)
+    .then((res) => res.json())
+    .then((data) => {
+      // Support both { words: [] } and raw [] formats
+      const words = Array.isArray(data) ? data : data.words;
+      engine.init(words);
+      // Blur to return focus to body
+      langSelect.blur();
+    })
+    .catch((err) => {
+      console.error("Failed to load language:", err);
+    });
+};
+
+langSelect.addEventListener("change", (e) => {
+  const target = e.target as HTMLSelectElement;
+  loadLanguage(target.value);
+});
+
+// Fetch available languages and init
+fetch("/languages.json")
+  .then((res) => res.json())
+  .then((languages: string[]) => {
+    // Populate select
+    languages.forEach((lang) => {
+      const option = document.createElement("option");
+      option.value = lang;
+      // Format: "english_10k.json" -> "english 10k"
+      option.textContent = lang.replace(".json", "").replace(/_/g, " ");
+      if (lang === "english_10k.json") option.selected = true;
+      langSelect.appendChild(option);
+    });
+
+    // Initial Load
+    loadLanguage("english_10k.json");
   });
 
 // --- Global Key Listener ---
