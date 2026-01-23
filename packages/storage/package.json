@@ -1,6 +1,7 @@
 {
   "name": "@rlytype/storage",
   "version": "0.0.0",
+  "license": "GPL-3.0",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
