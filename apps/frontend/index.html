@@ -42,6 +42,7 @@
     <link rel="stylesheet" href="/src/css/variables.css" />
     <link rel="stylesheet" href="/src/css/layout.css" />
     <link rel="stylesheet" href="/src/css/components.css" />
+    <link rel="stylesheet" href="/src/css/onboarding.css" />
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -67,9 +68,7 @@
     <div id="app-container">
       <!-- SIDEBAR: Command Center -->
       <aside id="sidebar">
-                <h1 class="sidebar-brand">
-                  Rly<span>Type</span>
-                </h1>
+        <h1 class="sidebar-brand">Rly<span>Type</span></h1>
 
         <div class="sidebar-section">
           <div class="sidebar-title">Engine Strategy</div>
@@ -88,9 +87,9 @@
         </div>
 
         <div class="sidebar-section">
-          <div class="sidebar-title">Target Fluidity (fWPM)</div>
+          <div class="sidebar-title">Target WPM</div>
           <div class="slider-container">
-            <input type="range" id="target-slider" min="10" max="400" value="80" />
+            <input type="range" id="target-slider" min="10" max="200" value="80" />
             <span class="slider-value" id="target-value">80</span>
           </div>
         </div>
@@ -120,61 +119,70 @@
       <main id="main-stage">
         <!-- HEADER -->
         <header id="cockpit-header">
-          <!-- Sidebar Toggle (Visual Only for now) -->
-          <button
-            id="sidebar-toggle"
-            aria-label="Toggle Sidebar"
-            style="
-              position: absolute;
-              left: 1rem;
-              background: none;
-              border: none;
-              color: var(--text-muted);
-              cursor: pointer;
-            "
-          >
-            <svg
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+          <!-- Left: Sidebar Toggle -->
+          <div style="display: flex; align-items: center; justify-content: flex-start">
+            <button
+              id="sidebar-toggle"
+              aria-label="Toggle Sidebar"
+              style="
+                background: none;
+                border: none;
+                color: var(--text-muted);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+              "
             >
-              <path d="M3 12h18M3 6h18M3 18h18" />
-            </svg>
-          </button>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </button>
+          </div>
 
-          <!-- Mode Selector -->
-          <div class="mode-selector">
-            <div class="mode-item active">
-              <span class="mode-label">Unigram</span>
-              <div class="mode-ring"></div>
-            </div>
-            <div class="mode-item">
-              <span class="mode-label">Bigram</span>
-              <div class="mode-ring"></div>
-            </div>
-            <div class="mode-item">
-              <span class="mode-label">Trigram</span>
-              <div class="mode-ring"></div>
+          <!-- Center: Mode Selector -->
+          <div style="display: flex; justify-content: center">
+            <div class="mode-selector" id="mode-selector">
+              <div class="mode-item active">
+                <span class="mode-label">Unigram</span>
+                <div class="mode-ring"></div>
+              </div>
+              <div class="mode-item">
+                <span class="mode-label">Bigram</span>
+                <div class="mode-ring"></div>
+              </div>
+              <div class="mode-item">
+                <span class="mode-label">Trigram</span>
+                <div class="mode-ring"></div>
+              </div>
             </div>
           </div>
 
-          <!-- Mastery Widget -->
-          <div class="mastery-widget">
-            <div class="mastery-info">
-              <span class="mastery-label" id="mastery-label">Mastery</span>
-              <span class="mastery-value" id="mastery-percent">0%</span>
-            </div>
-            <div class="mastery-track">
-              <div class="mastery-fill" id="mastery-bar" style="width: 0%"></div>
+          <!-- Right: Mastery Widget -->
+          <div style="display: flex; justify-content: flex-end">
+            <div class="mastery-widget" id="mastery-widget">
+              <div class="mastery-info">
+                <span class="mastery-label" id="mastery-label">Mastery</span>
+                <span class="mastery-value" id="mastery-percent">0%</span>
+              </div>
+              <div class="mastery-track">
+                <div class="mastery-fill" id="mastery-bar" style="width: 0%"></div>
+              </div>
             </div>
           </div>
         </header>
 
         <!-- HERO STAGE -->
         <section id="hero-stage">
+          <!-- Language Selector -->
+          <select id="language-selector" aria-label="Select Language"></select>
+
           <!-- Typing Stream -->
           <div id="word-stream">
             <!-- BatchRenderer will inject words here -->

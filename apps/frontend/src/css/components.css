@@ -182,12 +182,43 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* --- Hero Stage (Typing) --- */
 
+/* Language Selector */
+#language-selector {
+  grid-row: 1;
+  align-self: center;
+  margin-bottom: 2rem;
+
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: var(--font-ui);
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+  padding: 6px 12px;
+  transition: all 0.2s;
+  text-align: center;
+  border-radius: 4px;
+}
+
+#language-selector:hover {
+  color: var(--text-highlight);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+#language-selector option {
+  background-color: var(--surface-panel);
+  color: var(--text-main);
+  padding: 8px;
+}
+
 #word-stream {
   font-family: var(--font-mono);
   font-size: 2.5rem;
   line-height: 1.6;
   width: 80%;
-  max-width: 900px;
   text-align: center;
   position: relative;
   /* batch renderer will inject content here */
@@ -205,6 +236,10 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 .word.active {
   /* No Focus Bar */
+}
+
+.word.completed .char {
+  color: var(--text-highlight);
 }
 
 .char {
@@ -562,8 +597,6 @@ input[type="range"]::-webkit-slider-runnable-track {
 
 /* --- Mastery Widget (Header) --- */
 .mastery-widget {
-  position: absolute;
-  right: 2rem;
   width: 180px;
   display: flex;
   flex-direction: column;

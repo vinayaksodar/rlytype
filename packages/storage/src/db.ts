@@ -1,9 +1,10 @@
 import { PatternStat, UserConfig } from "@rlytype/types";
 
 const DB_NAME = "rlytype_db";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_PATTERNS = "patterns";
 const STORE_CONFIG = "config";
+const STORE_LANGUAGES = "languages";
 
 export class StorageEngine {
   private db: IDBDatabase | null = null;
@@ -29,6 +30,9 @@ export class StorageEngine {
         }
         if (!db.objectStoreNames.contains(STORE_CONFIG)) {
           db.createObjectStore(STORE_CONFIG); // Key-Value store
+        }
+        if (!db.objectStoreNames.contains(STORE_LANGUAGES)) {
+          db.createObjectStore(STORE_LANGUAGES); // Key-Value store (filename -> words[])
         }
       };
     });
@@ -76,6 +80,28 @@ export class StorageEngine {
       const tx = this.db!.transaction(STORE_CONFIG, "readonly");
       const store = tx.objectStore(STORE_CONFIG);
       const request = store.get("user_config");
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error);
+    });
+  }
+
+  async saveLanguage(filename: string, words: string[]): Promise<void> {
+    if (!this.db) return;
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(STORE_LANGUAGES, "readwrite");
+      const store = tx.objectStore(STORE_LANGUAGES);
+      store.put(words, filename);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async getLanguage(filename: string): Promise<string[] | null> {
+    if (!this.db) return null;
+    return new Promise((resolve, reject) => {
+      const tx = this.db!.transaction(STORE_LANGUAGES, "readonly");
+      const store = tx.objectStore(STORE_LANGUAGES);
+      const request = store.get(filename);
       request.onsuccess = () => resolve(request.result || null);
       request.onerror = () => reject(request.error);
     });

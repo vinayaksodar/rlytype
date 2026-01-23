@@ -66,7 +66,3 @@ Most typing tutors focus on words or random characters. **RlyType** treats words
     ```bash
     npm run build
     ```
-
-## License
-
-MIT

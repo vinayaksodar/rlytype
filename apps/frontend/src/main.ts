@@ -1,7 +1,9 @@
 import { inject } from "@vercel/analytics";
 import { TypingEngine } from "@rlytype/engine";
 import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
+import { storage } from "@rlytype/storage";
 import { Stage, LearningMode } from "@rlytype/types";
+import { OnboardingTour, TourStep } from "./onboarding";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -47,6 +49,7 @@ const heatmapRenderer = new HeatmapRenderer(visualizerContainer);
 let lastTargetWpm = -1;
 let lastStage: Stage | null = null;
 let lastWordIndex = -1;
+let lastLanguage = "";
 let targetWpm = 80; // Default
 
 // Initialize UI with defaults
@@ -162,11 +165,12 @@ engine.subscribe((state) => {
     }
   });
 
-  // 6. Update Heatmap (When a new batch starts OR when target fluidity or stage changes)
+  // 6. Update Heatmap (When a new batch starts OR when target wpm, stage, or language changes)
   if (
     (state.activeWordIndex === 0 && lastWordIndex !== 0) ||
     state.meta.targetWpm !== lastTargetWpm ||
-    state.meta.currentStage !== lastStage
+    state.meta.currentStage !== lastStage ||
+    state.meta.language !== lastLanguage
   ) {
     // Capitalize for renderer
     const modeCap = currentStage.charAt(0).toUpperCase() + currentStage.slice(1);
@@ -177,6 +181,7 @@ engine.subscribe((state) => {
 
     lastTargetWpm = state.meta.targetWpm;
     lastStage = state.meta.currentStage;
+    lastLanguage = state.meta.language;
 
     // Update Mastery Queue
     updateMasteryQueue();
@@ -238,13 +243,71 @@ function updateMasteryQueue() {
   });
 }
 
-// --- Start Engine ---
-// Fetch words and init
-fetch("/words.json")
-  .then((res) => res.json())
-  .then((data) => {
-    engine.init(data.words);
+// --- Language Selector ---
+const langSelect = document.getElementById("language-selector") as HTMLSelectElement;
+
+const loadLanguage = async (filename: string) => {
+  try {
+    // 1. Check local DB cache
+    const cachedWords = await storage.getLanguage(filename);
+    if (cachedWords && cachedWords.length > 0) {
+      console.log(`[Language] Loaded ${filename} from cache.`);
+      await engine.init(cachedWords);
+      engine.setLanguage(filename); // Sync engine state & persist config
+      langSelect.blur();
+      return;
+    }
+
+    // 2. Fetch from network
+    console.log(`[Language] Fetching ${filename}...`);
+    const res = await fetch(`/languages/${filename}`);
+    const data = await res.json();
+
+    // Support both { words: [] } and raw [] formats
+    const words = Array.isArray(data) ? data : data.words;
+
+    // 3. Save to cache
+    await storage.saveLanguage(filename, words);
+
+    // 4. Init engine
+    await engine.init(words);
+    engine.setLanguage(filename); // Sync engine state & persist config
+    langSelect.blur();
+  } catch (err) {
+    console.error("Failed to load language:", err);
+  }
+};
+
+// Fetch available languages and init
+(async () => {
+  // Ensure storage is ready before loading config
+  await storage.init();
+
+  const [languages, config] = await Promise.all([
+    fetch("/languages.json").then((res) => res.json() as Promise<string[]>),
+    storage.loadConfig(),
+  ]);
+
+  const initialLanguage = config?.language || "english_10k.json";
+
+  // Populate select
+  languages.forEach((lang) => {
+    const option = document.createElement("option");
+    option.value = lang;
+    // Format: "english_10k.json" -> "english 10k"
+    option.textContent = lang.replace(".json", "").replace(/_/g, " ");
+    if (lang === initialLanguage) option.selected = true;
+    langSelect.appendChild(option);
   });
+
+  // Initial Load
+  loadLanguage(initialLanguage);
+})();
+
+langSelect.addEventListener("change", (e) => {
+  const target = e.target as HTMLSelectElement;
+  loadLanguage(target.value);
+});
 
 // --- Global Key Listener ---
 window.addEventListener("keydown", (e) => {
@@ -253,4 +316,73 @@ window.addEventListener("keydown", (e) => {
     if (e.key === " ") e.preventDefault();
     engine.handleKey(e.key);
   }
+});
+
+// --- Onboarding Tour ---
+const tourSteps: TourStep[] = [
+  {
+    title: "Welcome to RlyType",
+    content:
+      "An adaptive typing tutor designed to find and fix your weak points using pattern recognition. Let's show you around.",
+    position: "center",
+  },
+  {
+    elementId: "mode-selector",
+    title: "Learning Stage",
+    content:
+      "Switch between ngrams i.e Unigrams (letters), Bigrams (pairs), and Trigrams (triplets) to target different levels of muscle memory.",
+    position: "bottom",
+  },
+  {
+    elementId: "mastery-widget",
+    title: "Overall Mastery",
+    content:
+      "What percentage of patterns in the selected ngram type have hit target wpm. Master every pattern to hit 100%!",
+    position: "bottom",
+  },
+  {
+    elementId: "sidebar",
+    title: "Command Center",
+    content:
+      "Configure your training here. Choose 'Reinforced' to target weaknesses dynamically or 'Sequential' to pick the current weakest and drill it till you hit your target WPM. Set your Target Words per minute to push your limits.",
+    position: "right",
+  },
+  {
+    elementId: "language-selector",
+    title: "Language Selector",
+    content: "Choose from a variety of languages/wordsets to practice with.",
+    position: "bottom",
+  },
+  {
+    elementId: "hero-stage",
+    title: "The Stage",
+    content:
+      "This is where you type.The engine will analyze every keystroke. Initally you may see a lot of repeated words as a random rare pattern may be chosen but more frequent patterns bubble up naturally as you keep practicing.",
+    position: "left",
+  },
+  {
+    elementId: "stats-pill",
+    title: "Live Stats",
+    content:
+      "Monitor your WPM and Accuracy in real-time. 'Current Pattern' shows exactly which bigram or trigram triggered the current word.",
+    position: "top",
+  },
+  {
+    elementId: "adaptive-footer",
+    title: "Adaptive Insights",
+    content:
+      "Open this panel to see your Mastery Queue (which pattern is how far from your target WPM ) and the Adaptive Visualizer.",
+    position: "top",
+  },
+];
+
+window.addEventListener("load", () => {
+  // Small delay to ensure everything is rendered
+  setTimeout(() => {
+    const tour = new OnboardingTour(tourSteps);
+    tour.start();
+
+    // Optional: Expose reset for testing/manual triggering
+    (window as unknown as { resetTour: () => void }).resetTour = () => tour.reset();
+  }, 1000);
 });
