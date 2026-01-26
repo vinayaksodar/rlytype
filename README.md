@@ -44,12 +44,11 @@ Most typing tutors focus on words or random characters. **RlyType** treats words
 ├─ apps/
 │  └─ frontend/      # Main application entry and engine orchestration
 ├─ packages/
-│  ├─ core/          # Pattern extraction and stat calculations
-│  ├─ storage/       # IndexedDB persistence
-│  ├─ generator/     # Word selection logic
-│  ├─ ui/            # Shared UI components and renderers
-│  └─ types/         # Shared TypeScript interfaces
-└─ words.json        # Frequency-sorted word corpus
+   ├─ core/          # Pattern extraction and stat calculations
+   ├─ storage/       # IndexedDB persistence
+   ├─ generator/     # Word selection logic
+   ├─ ui/            # Shared UI components and renderers
+   └─ types/         # Shared TypeScript interfaces
 ```
 
 ## Running Locally
