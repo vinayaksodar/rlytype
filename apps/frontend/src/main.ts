@@ -8,6 +8,32 @@ import { OnboardingTour, TourStep } from "./onboarding";
 // Initialize Vercel Web Analytics
 inject();
 
+// --- Mobile Check ---
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
+
+if (isMobile()) {
+  document.body.innerHTML = `
+    <div style="
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      text-align: center;
+      font-family: sans-serif;
+      padding: 20px;
+      background-color: #1a1a1a;
+      color: #fff;
+    ">
+      <h1>Desktop Only</h1>
+      <p>This application is designed for desktop use only. Please visit us on a computer for the best experience.</p>
+    </div>
+  `;
+  throw new Error("Mobile device detected. App stopped.");
+}
+
 // --- DOM References ---
 const sidebar = document.getElementById("sidebar")!;
 const sidebarToggle = document.getElementById("sidebar-toggle")!;
