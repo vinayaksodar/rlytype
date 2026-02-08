@@ -41,6 +41,8 @@ const targetSlider = document.getElementById("target-slider") as HTMLInputElemen
 const targetValueDisplay = document.getElementById("target-value")!;
 
 const wordStreamEl = document.getElementById("word-stream")!;
+const heroStageEl = document.getElementById("hero-stage")!;
+const typingInputEl = document.getElementById("typing-input") as HTMLInputElement;
 const statsWpmEl = document.getElementById("stat-wpm")!;
 const statsPatternEl = document.getElementById("stat-pattern")!;
 const statsAccEl = document.getElementById("stat-acc")!;
@@ -336,12 +338,74 @@ langSelect.addEventListener("change", (e) => {
 });
 
 // --- Global Key Listener ---
-window.addEventListener("keydown", (e) => {
-  if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if (e.key.length === 1 || e.key === "Backspace") {
-    if (e.key === " ") e.preventDefault();
-    engine.handleKey(e.key);
+let isComposing = false;
+
+const focusTypingInput = () => {
+  typingInputEl.focus();
+};
+
+typingInputEl.addEventListener("compositionstart", () => {
+  isComposing = true;
+});
+
+typingInputEl.addEventListener("compositionend", () => {
+  isComposing = false;
+});
+
+typingInputEl.addEventListener("beforeinput", (event) => {
+  if (event.inputType === "insertParagraph") {
+    event.preventDefault();
   }
+});
+
+typingInputEl.addEventListener("input", (event) => {
+  const inputEvent = event as InputEvent;
+  const inputType = inputEvent.inputType;
+  const data = inputEvent.data ?? typingInputEl.value;
+
+  if (inputType === "insertCompositionText" || inputEvent.isComposing || isComposing) {
+    typingInputEl.value = "";
+    return;
+  }
+
+  if (inputType === "deleteContentBackward") {
+    engine.handleDeleteContentBackward();
+    typingInputEl.value = "";
+    return;
+  }
+
+  if (inputType === "deleteWordBackward") {
+    engine.handleDeleteWordBackward();
+    typingInputEl.value = "";
+    return;
+  }
+
+  if (inputType === "insertText" || inputType === "insertFromPaste") {
+    engine.handleTextInput(data);
+    typingInputEl.value = "";
+    return;
+  }
+
+  if (data) {
+    engine.handleTextInput(data);
+  }
+
+  typingInputEl.value = "";
+});
+
+typingInputEl.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    focusTypingInput();
+  }
+});
+
+heroStageEl.addEventListener("pointerdown", () => {
+  focusTypingInput();
+});
+
+window.addEventListener("load", () => {
+  focusTypingInput();
 });
 
 // --- Onboarding Tour ---

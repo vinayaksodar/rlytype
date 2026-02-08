@@ -241,6 +241,41 @@ export class TypingEngine {
   // Input handling
   // ------------------------
 
+  handleTextInput(text: string) {
+    if (!text) return;
+    this.splitGraphemes(text).forEach((grapheme) => this.handleKey(grapheme));
+  }
+
+  handleDeleteContentBackward() {
+    if (!this.state.isLoaded) return;
+    if (this.state.activeCharIndex === 0) {
+      this.state.isError = false;
+      this.notify();
+      return;
+    }
+
+    const typedGraphemes = this.splitGraphemes(this.state.typedSoFar);
+    typedGraphemes.pop();
+    this.state.typedSoFar = typedGraphemes.join("");
+    this.state.activeCharIndex = Math.max(0, this.state.activeCharIndex - 1);
+    this.state.isError = false;
+    this.notify();
+  }
+
+  handleDeleteWordBackward() {
+    if (!this.state.isLoaded) return;
+    if (this.state.activeCharIndex === 0) {
+      this.state.isError = false;
+      this.notify();
+      return;
+    }
+
+    this.state.typedSoFar = "";
+    this.state.activeCharIndex = 0;
+    this.state.isError = false;
+    this.notify();
+  }
+
   handleKey(key: string) {
     if (!this.state.isLoaded) return;
 
@@ -254,11 +289,12 @@ export class TypingEngine {
 
     const word = this.state.words[this.state.activeWordIndex];
     if (!word) return; // Should not happen
+    const wordGraphemes = this.splitGraphemes(word);
 
     const now = Date.now();
 
     // End of word → expect space
-    if (this.state.activeCharIndex === word.length) {
+    if (this.state.activeCharIndex === wordGraphemes.length) {
       this.batchKeystrokes++;
       if (key === " ") {
         this.advanceWord();
@@ -270,7 +306,7 @@ export class TypingEngine {
       return;
     }
 
-    const expected = word[this.state.activeCharIndex];
+    const expected = wordGraphemes[this.state.activeCharIndex];
     this.batchKeystrokes++;
 
     if (key === expected) {
@@ -290,7 +326,7 @@ export class TypingEngine {
 
       // Auto-advance if last word of batch is completed
       if (
-        this.state.activeCharIndex === word.length &&
+        this.state.activeCharIndex === wordGraphemes.length &&
         this.state.activeWordIndex === this.state.words.length - 1
       ) {
         this.advanceWord();
@@ -334,19 +370,28 @@ export class TypingEngine {
     }
   }
 
+  private splitGraphemes(text: string): string[] {
+    if (typeof Intl !== "undefined" && "Segmenter" in Intl) {
+      const segmenter = new Intl.Segmenter(undefined, { granularity: "grapheme" });
+      return Array.from(segmenter.segment(text), (segment) => segment.segment);
+    }
+    return Array.from(text);
+  }
+
   // ------------------------
   // Stats attribution
   // ------------------------
 
   private attributeStats(word: string, idx: number, latency: number) {
-    const char = word[idx];
-    const prev = word[idx - 1];
+    const wordGraphemes = this.splitGraphemes(word);
+    const char = wordGraphemes[idx];
+    const prev = wordGraphemes[idx - 1];
 
     this.updateStat(char, latency);
     this.updateStat(prev + char, latency);
 
     if (idx > 1) {
-      const prevPrev = word[idx - 2];
+      const prevPrev = wordGraphemes[idx - 2];
       this.updateStat(prevPrev + prev + char, latency);
     }
   }

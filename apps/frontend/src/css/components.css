@@ -98,6 +98,16 @@ input[type="range"]::-webkit-slider-runnable-track {
   min-width: 3ch;
 }
 
+.typing-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  height: 1px;
+  width: 1px;
+  border: 0;
+  padding: 0;
+}
+
 /* --- Header Components --- */
 
 .mode-selector {
