@@ -1,5 +1,18 @@
 # frontend
 
+## 0.0.3
+
+### Patch Changes
+
+- Bump version to 0.0.3
+- Updated dependencies
+  - @rlytype/core@0.0.3
+  - @rlytype/engine@0.0.3
+  - @rlytype/generator@0.0.3
+  - @rlytype/storage@0.0.3
+  - @rlytype/types@0.0.3
+  - @rlytype/ui@0.0.3
+
 ## 0.0.2
 
 ### Patch Changes
