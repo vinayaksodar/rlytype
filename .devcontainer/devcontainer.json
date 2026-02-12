@@ -4,6 +4,10 @@
   // See https://hub.docker.com/_/microsoft-vscode-devcontainers for more options.
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
 
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {}
+  },
+
   // Forward the port that Vite uses.
   "forwardPorts": [5173],
   "portsAttributes": {
