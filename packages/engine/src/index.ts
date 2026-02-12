@@ -82,6 +82,7 @@ export class TypingEngine {
       this.state.meta.language = config.language || "english_10k.json";
     }
 
+    this.resetTypingState();
     this.updateStageMastery();
     this.generateMoreWords();
     this.state.isLoaded = true;
@@ -110,8 +111,15 @@ export class TypingEngine {
   }
 
   setLanguage(language: string) {
+    const languageChanged = this.state.meta.language !== language;
     this.state.meta.language = language;
     this.saveConfig();
+
+    if (this.state.isLoaded && languageChanged) {
+      this.resetWords();
+      return;
+    }
+
     this.notify();
   }
 
@@ -161,16 +169,20 @@ export class TypingEngine {
   private resetWords() {
     this.state.words = [];
     this.state.activeWordIndex = 0;
-    this.state.activeCharIndex = 0;
-    this.state.typedSoFar = "";
-    this.state.errorBuffer = "";
-    this.state.isError = false;
+    this.resetTypingState();
 
     // We do NOT reset session stats here, only batch stats
     if (this.state.isLoaded) {
       this.generateMoreWords();
     }
     this.notify();
+  }
+
+  private resetTypingState() {
+    this.state.activeCharIndex = 0;
+    this.state.typedSoFar = "";
+    this.state.errorBuffer = "";
+    this.state.isError = false;
   }
 
   private generateMoreWords() {
