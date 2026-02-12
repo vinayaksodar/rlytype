@@ -352,6 +352,26 @@ langSelect.addEventListener("change", (e) => {
   loadLanguage(target.value);
 });
 
+// If the selector keeps focus (e.g. selecting the same option), typing should continue the test,
+// not cycle language options.
+langSelect.addEventListener("keydown", (e) => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+
+  const isTypingKey = e.key.length === 1 || e.key === "Backspace" || e.key === " ";
+  if (!isTypingKey) return;
+
+  e.preventDefault();
+  langSelect.blur();
+  focusInput();
+
+  if (e.key === "Backspace") {
+    engine.handleKey("Backspace");
+    return;
+  }
+
+  engine.handleKey(e.key);
+});
+
 // --- Input Handling ---
 initializeInput({
   inputEl: hiddenInput,
