@@ -7,7 +7,7 @@
 ## 0. High-level Overview
 
 - **Architecture:** Client-side only (Offline-first).
-- **Data Source:** Local `words.json` containing frequency-sorted words.
+- **Data Source:** Language files in `apps/frontend/public/languages/*.json` (plus `languages.json` index). Word lists are cached in IndexedDB.
 - **Learning Unit:** **Patterns** (Unigrams, Bigrams, Trigrams). Words are dynamically selected to target specific patterns.
 - **Algorithm:**
   - **Stats:** Exponential Weighted Moving Average (EWMA) for latency tracking.
@@ -34,7 +34,7 @@
 │  ├─ engine/              # The "Game Loop" & State Management (Platform agnostic).
 │  ├─ ui/                  # Vanilla DOM Renderers (Batch, Stats, Heatmap).
 │  └─ types/               # Shared TypeScript interfaces.
-├─ words.json              # Source corpus.
+├─ apps/frontend/public/languages/  # Language word-list JSON assets.
 ```
 
 ---
@@ -53,7 +53,8 @@
 
 - **IndexedDB Wrapper:**
   - **`patterns` store:** Stores `PatternStat` (attempts, ewmaLatency).
-  - **`config` store:** Stores `UserConfig` (targetWpm, learningMode, currentStage).
+  - **`config` store:** Stores `UserConfig` (targetWpm, learningMode, currentStage, language).
+  - **`languages` store:** Caches language word arrays by filename (`english_10k.json`, etc.).
 - **Resilience:** Gracefully handles non-browser environments (SSR/Node) by doing nothing.
 
 ### `packages/generator`
@@ -81,7 +82,12 @@
 ### `apps/frontend` (The "Face")
 
 - **`main.ts`:** Entry point.
-  - Fetches dictionary data and injects it into `TypingEngine`.
+  - Loads `languages.json`, fetches selected language file, caches words in IndexedDB, and injects into `TypingEngine`.
+  - **Language switching UX:**
+    - Shows a loading indicator in the word stream while a different language is loading.
+    - Disables the language selector during load.
+    - Refocuses the hidden input after selection.
+    - Guards against accidental language cycling when typing while the selector still has focus.
   - **Input Strategy:** Employs a **Hidden Input** element to capture text. This ensures robust support for IME, dead keys (accents), and mobile virtual keyboards.
   - **Event Logic:**
     - `input` event: Captures resolved characters (including composed ones like `í`).
@@ -105,6 +111,9 @@ The engine operates in **Batches** (default 10 words). For each batch:
 2.  **Generate Words:**
     - Queries the `Indexer` for words containing the target pattern.
     - Randomly selects words from that list to fill the batch.
+3.  **Language Changes:**
+    - Frontend reloads words for the selected language and re-initializes the engine.
+    - Engine resets transient typing state (`activeCharIndex`, `typedSoFar`, `errorBuffer`, `isError`) on init/language reset to avoid stale error carryover.
 
 ### Latency Attribution
 
@@ -136,6 +145,7 @@ The engine operates in **Batches** (default 10 words). For each batch:
   - `patterns`: Key path `id`. Stores performance history.
   - `config`: Key-value store for user settings.
 - **Sync:** Stats are saved to IndexedDB immediately upon update (debouncing strategy may be added later).
+- **Language Cache:** Fetched language files are persisted and loaded from IndexedDB when available.
 
 ---
 
