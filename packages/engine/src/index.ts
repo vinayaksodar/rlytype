@@ -241,66 +241,79 @@ export class TypingEngine {
   // Input handling
   // ------------------------
 
-  handleKey(key: string) {
+  handleKey(keys: string) {
     if (!this.state.isLoaded) return;
+    console.log(`[Engine] handleKey received: "${keys}" (length: ${keys.length})`);
 
-    // Ignore leading space at the start of a batch (often from previous batch auto-advance)
-    if (!this.isBatchStarted && key === " ") return;
-
-    if (!this.isBatchStarted) {
-      this.isBatchStarted = true;
-      this.batchStartTime = Date.now();
-    }
-
-    const word = this.state.words[this.state.activeWordIndex];
-    if (!word) return; // Should not happen
-
-    const now = Date.now();
-
-    // End of word → expect space
-    if (this.state.activeCharIndex === word.length) {
-      this.batchKeystrokes++;
-      if (key === " ") {
-        this.advanceWord();
-      } else {
-        this.batchErrors++;
-        this.state.isError = true;
+    if (keys === "Backspace") {
+      if (this.state.activeCharIndex > 0) {
+        this.state.activeCharIndex--;
+        this.state.typedSoFar = this.state.typedSoFar.slice(0, -1);
       }
+      this.state.isError = false;
       this.notify();
       return;
     }
 
-    const expected = word[this.state.activeCharIndex];
-    this.batchKeystrokes++;
+    for (const key of keys) {
+      // Ignore leading space at the start of a batch (often from previous batch auto-advance)
+      if (!this.isBatchStarted && key === " ") continue;
 
-    if (key === expected) {
-      this.state.isError = false;
+      if (!this.isBatchStarted) {
+        this.isBatchStarted = true;
+        this.batchStartTime = Date.now();
+      }
 
-      if (this.state.activeCharIndex > 0) {
-        const delta = now - this.lastKeyTime;
-        // Ignore very long pauses (distractions)
-        if (delta < 2000) {
-          this.attributeStats(word, this.state.activeCharIndex, delta);
+      const word = this.state.words[this.state.activeWordIndex];
+      if (!word) continue; // Should not happen
+
+      const now = Date.now();
+
+      // End of word → expect space
+      if (this.state.activeCharIndex === word.length) {
+        this.batchKeystrokes++;
+        if (key === " ") {
+          this.advanceWord();
+        } else {
+          this.batchErrors++;
+          this.state.isError = true;
         }
+        this.notify();
+        continue;
       }
 
-      this.state.typedSoFar += key;
-      this.state.activeCharIndex++;
-      this.lastKeyTime = now;
+      const expected = word[this.state.activeCharIndex];
+      this.batchKeystrokes++;
 
-      // Auto-advance if last word of batch is completed
-      if (
-        this.state.activeCharIndex === word.length &&
-        this.state.activeWordIndex === this.state.words.length - 1
-      ) {
-        this.advanceWord();
+      if (key === expected) {
+        this.state.isError = false;
+
+        if (this.state.activeCharIndex > 0) {
+          const delta = now - this.lastKeyTime;
+          // Ignore very long pauses (distractions)
+          if (delta < 2000) {
+            this.attributeStats(word, this.state.activeCharIndex, delta);
+          }
+        }
+
+        this.state.typedSoFar += key;
+        this.state.activeCharIndex++;
+        this.lastKeyTime = now;
+
+        // Auto-advance if last word of batch is completed
+        if (
+          this.state.activeCharIndex === word.length &&
+          this.state.activeWordIndex === this.state.words.length - 1
+        ) {
+          this.advanceWord();
+        }
+      } else {
+        this.batchErrors++;
+        this.state.isError = true;
       }
-    } else {
-      this.batchErrors++;
-      this.state.isError = true;
+
+      this.notify();
     }
-
-    this.notify();
   }
 
   private finalizeBatchStats() {

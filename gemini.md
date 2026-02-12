@@ -68,7 +68,7 @@
 - **`TypingEngine`:** The central controller.
   - **State Management:** Holds current words, active index, and session stats (`EngineState`).
   - **Coordinator:** Orchestrates `generator`, `storage`, and `core` logic.
-  - **Input Handling:** Processes keystrokes, calculates stats, and handles error tracking.
+  - **Input Handling:** Processes strings (single or multi-char), calculates stats, and handles error tracking. Correctly handles `Backspace` to reset error states and move the cursor back.
   - **Attribution:** Maps keystrokes to specific patterns and updates stats in `core`.
   - **Dependency Injection:** Accepts raw word data in `init()` to remain environment-agnostic.
 
@@ -81,10 +81,15 @@
 ### `apps/frontend` (The "Face")
 
 - **`main.ts`:** Entry point.
-  - Fetches `words.json` and injects it into `TypingEngine`.
+  - Fetches dictionary data and injects it into `TypingEngine`.
+  - **Input Strategy:** Employs a **Hidden Input** element to capture text. This ensures robust support for IME, dead keys (accents), and mobile virtual keyboards.
+  - **Event Logic:**
+    - `input` event: Captures resolved characters (including composed ones like `í`).
+    - `keydown` event: Captures functional keys like `Backspace` and `Space`.
+    - `composition` events: Manages `isComposing` state to prevent premature engine updates.
   - Initializes `BatchRenderer` and `HeatmapRenderer`.
   - Manages UI event listeners (sidebar, settings, sliders).
-  - Subscribes to engine state changes to update the DOM (including manual stats updates).
+  - Subscribes to engine state changes to update the DOM.
 
 ---
 
@@ -105,11 +110,12 @@ The engine operates in **Batches** (default 10 words). For each batch:
 
 **Metric:** Inter-Key Stroke Interval (IKSI).
 
-- **Events:** KeyDown events.
+- **Events:** `input` (for characters) and `keydown` (for space).
 - **Logic:**
   1.  **Skip First Char:** The first character of a word is "Reading Time", not "Motor Time". It is ignored.
   2.  **Outlier Filter:** Latencies > 2000ms are discarded (assumed distraction).
-  3.  **Multi-Pattern Update:** A single keystroke updates multiple patterns:
+  3.  **Dead Key Handling:** Single dead-key strokes are ignored until they resolve into a character.
+  4.  **Multi-Pattern Update:** A single keystroke updates multiple patterns:
       - **Unigram:** The character itself.
       - **Bigram:** The pair `(PrevChar + Char)`.
       - **Trigram:** The triplet `(PrevPrevChar + PrevChar + Char)`.
