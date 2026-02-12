@@ -3,13 +3,14 @@ export interface RenderState {
   activeWordIndex: number;
   activeCharIndex: number;
   typedSoFar: string;
+  errorBuffer: string;
   isError: boolean;
 }
 export class BatchRenderer {
   constructor(private container: HTMLElement) {}
 
   render(state: RenderState) {
-    const { words, activeWordIndex, activeCharIndex, typedSoFar, isError } = state;
+    const { words, activeWordIndex, activeCharIndex, typedSoFar, errorBuffer, isError } = state;
 
     this.container.innerHTML = "";
 
@@ -23,6 +24,15 @@ export class BatchRenderer {
       if (wordIdx < activeWordIndex) wordDiv.classList.add("completed");
 
       word.split("").forEach((char, charIdx) => {
+        if (isActive && charIdx === activeCharIndex && errorBuffer.length > 0) {
+          errorBuffer.split("").forEach((errChar) => {
+            const errSpan = document.createElement("span");
+            errSpan.textContent = errChar === " " ? "_" : errChar;
+            errSpan.classList.add("char", "incorrect", "extra");
+            wordDiv.appendChild(errSpan);
+          });
+        }
+
         const span = document.createElement("span");
         span.textContent = char;
         span.classList.add("char");
@@ -40,6 +50,15 @@ export class BatchRenderer {
       });
 
       // space
+      if (isActive && activeCharIndex === word.length && errorBuffer.length > 0) {
+        errorBuffer.split("").forEach((errChar) => {
+          const errSpan = document.createElement("span");
+          errSpan.textContent = errChar === " " ? "_" : errChar;
+          errSpan.classList.add("char", "incorrect", "extra");
+          wordDiv.appendChild(errSpan);
+        });
+      }
+
       const space = document.createElement("span");
       space.textContent = " ";
       space.classList.add("char");

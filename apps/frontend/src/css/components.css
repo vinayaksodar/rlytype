@@ -255,6 +255,12 @@ input[type="range"]::-webkit-slider-runnable-track {
   color: var(--accent-rose);
 }
 
+.char.extra {
+  opacity: 0.7;
+  text-decoration: line-through;
+  font-size: 0.9em;
+}
+
 .char.cursor {
   background-color: rgba(234, 179, 8, 0.2); /* Yellow tint */
   box-shadow: 0 2px 0 var(--accent-yellow); /* Underline cursor style */

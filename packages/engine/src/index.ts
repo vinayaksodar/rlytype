@@ -22,6 +22,7 @@ export class TypingEngine {
     activeWordIndex: 0,
     activeCharIndex: 0,
     typedSoFar: "",
+    errorBuffer: "",
     isError: false,
     stats: {
       wpm: 0,
@@ -162,6 +163,7 @@ export class TypingEngine {
     this.state.activeWordIndex = 0;
     this.state.activeCharIndex = 0;
     this.state.typedSoFar = "";
+    this.state.errorBuffer = "";
     this.state.isError = false;
 
     // We do NOT reset session stats here, only batch stats
@@ -246,11 +248,13 @@ export class TypingEngine {
     console.log(`[Engine] handleKey received: "${keys}" (length: ${keys.length})`);
 
     if (keys === "Backspace") {
-      if (this.state.activeCharIndex > 0) {
+      if (this.state.errorBuffer.length > 0) {
+        this.state.errorBuffer = this.state.errorBuffer.slice(0, -1);
+      } else if (this.state.activeCharIndex > 0) {
         this.state.activeCharIndex--;
         this.state.typedSoFar = this.state.typedSoFar.slice(0, -1);
       }
-      this.state.isError = false;
+      this.state.isError = this.state.errorBuffer.length > 0;
       this.notify();
       return;
     }
@@ -272,11 +276,12 @@ export class TypingEngine {
       // End of word → expect space
       if (this.state.activeCharIndex === word.length) {
         this.batchKeystrokes++;
-        if (key === " ") {
+        if (this.state.errorBuffer.length === 0 && key === " ") {
           this.advanceWord();
         } else {
           this.batchErrors++;
           this.state.isError = true;
+          this.state.errorBuffer += key;
         }
         this.notify();
         continue;
@@ -285,7 +290,7 @@ export class TypingEngine {
       const expected = word[this.state.activeCharIndex];
       this.batchKeystrokes++;
 
-      if (key === expected) {
+      if (this.state.errorBuffer.length === 0 && key === expected) {
         this.state.isError = false;
 
         if (this.state.activeCharIndex > 0) {
@@ -310,6 +315,7 @@ export class TypingEngine {
       } else {
         this.batchErrors++;
         this.state.isError = true;
+        this.state.errorBuffer += key;
       }
 
       this.notify();
@@ -339,6 +345,7 @@ export class TypingEngine {
     this.state.activeWordIndex++;
     this.state.activeCharIndex = 0;
     this.state.typedSoFar = "";
+    this.state.errorBuffer = "";
 
     if (this.state.activeWordIndex >= this.state.words.length) {
       this.finalizeBatchStats();

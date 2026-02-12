@@ -14,6 +14,7 @@ export interface EngineState {
   activeWordIndex: number;
   activeCharIndex: number;
   typedSoFar: string;
+  errorBuffer: string;
   isError: boolean;
   stats: {
     wpm: number;
