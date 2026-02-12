@@ -4,7 +4,7 @@ import { BatchRenderer, HeatmapRenderer } from "@rlytype/ui";
 import { storage } from "@rlytype/storage";
 import { Stage, LearningMode } from "@rlytype/types";
 import { OnboardingTour, TourStep } from "./onboarding";
-import { setComposing, getComposing } from "./composition";
+import { initializeInput } from "./input";
 
 // Initialize Vercel Web Analytics
 inject();
@@ -352,68 +352,12 @@ langSelect.addEventListener("change", (e) => {
   loadLanguage(target.value);
 });
 
-// --- Input Handling Refactor ---
-
-hiddenInput.addEventListener("input", (e) => {
-  const inputEvent = e as InputEvent;
-  const data = inputEvent.data;
-  console.log(`[Input] data: "${data}", type: ${inputEvent.inputType}`);
-
-  // DON'T send to engine while composing OR if it's a composition update
-  if (getComposing() || inputEvent.inputType === "insertCompositionText") {
-    return;
-  }
-
-  // Detect dead keys that might fire 'input' without starting a composition
-  const isDeadKey = (s: string | null) => s && ["´", "`", "^", "¨", "~"].includes(s);
-  if (data && isDeadKey(data)) {
-    console.log("[Input] Ignored dead key stroke");
-    return;
-  }
-
-  if (data) {
-    engine.handleKey(data);
-  } else if (inputEvent.inputType === "insertText" && hiddenInput.value.endsWith(" ")) {
-    // Fallback for some browsers where space doesn't come in 'data'
-    engine.handleKey(" ");
-  }
-
-  // Clear input to keep it ready for next character/composition
-  if (!getComposing()) {
-    hiddenInput.value = "";
-  }
-});
-
-hiddenInput.addEventListener("keydown", (e) => {
-  console.log(`[Keydown] key: "${e.key}", composing: ${getComposing()}`);
-  if (getComposing()) return;
-
-  if (e.key === "Backspace") {
-    engine.handleKey("Backspace");
-  } else if (e.key === " ") {
-    // Prevent scroll, handled by 'input' or manual call
-    e.preventDefault();
-    engine.handleKey(" ");
-  }
-});
-
-// --- Composition Event Listeners ---
-hiddenInput.addEventListener("compositionstart", (e) => {
-  console.log("[Composition] start", e);
-  setComposing(true);
-});
-
-hiddenInput.addEventListener("compositionupdate", (e) => {
-  console.log(`[Composition] update data: "${e.data}"`);
-});
-
-hiddenInput.addEventListener("compositionend", (e) => {
-  console.log(`[Composition] end data: "${e.data}"`);
-  setComposing(false);
-  if (e.data) {
-    engine.handleKey(e.data);
-  }
-  hiddenInput.value = ""; // Clear after composition
+// --- Input Handling ---
+initializeInput({
+  inputEl: hiddenInput,
+  handleKey: (value) => {
+    engine.handleKey(value);
+  },
 });
 
 // --- Onboarding Tour ---
