@@ -80,6 +80,7 @@ let lastStage: Stage | null = null;
 let lastWordIndex = -1;
 let lastLanguage = "";
 let targetWpm = 80; // Default
+let isLanguageLoading = false;
 
 // Initialize UI with defaults
 targetSlider.value = targetWpm.toString();
@@ -288,6 +289,17 @@ function updateMasteryQueue() {
 const langSelect = document.getElementById("language-selector") as HTMLSelectElement;
 
 const loadLanguage = async (filename: string) => {
+  const isDifferentLanguage = filename !== lastLanguage;
+
+  if (isDifferentLanguage) {
+    isLanguageLoading = true;
+    langSelect.disabled = true;
+    const languageLabel = filename.replace(".json", "").replace(/_/g, " ");
+    loadingMsg.textContent = `Loading ${languageLabel}...`;
+    wordStreamEl.innerHTML = "";
+    wordStreamEl.appendChild(loadingMsg);
+  }
+
   try {
     // 1. Check local DB cache
     const cachedWords = await storage.getLanguage(filename);
@@ -318,6 +330,11 @@ const loadLanguage = async (filename: string) => {
     focusInput();
   } catch (err) {
     console.error("Failed to load language:", err);
+  } finally {
+    if (isDifferentLanguage) {
+      isLanguageLoading = false;
+      langSelect.disabled = false;
+    }
   }
 };
 
@@ -348,6 +365,7 @@ const loadLanguage = async (filename: string) => {
 })();
 
 langSelect.addEventListener("change", (e) => {
+  if (isLanguageLoading) return;
   const target = e.target as HTMLSelectElement;
   loadLanguage(target.value);
 });
