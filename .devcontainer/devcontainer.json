@@ -1,5 +1,5 @@
 {
-  "name": "Plot-lines Dev Environment",
+  "name": "Rlytype Dev Environment",
   // Use the official Microsoft Node.js image.
   // See https://hub.docker.com/_/microsoft-vscode-devcontainers for more options.
   "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
