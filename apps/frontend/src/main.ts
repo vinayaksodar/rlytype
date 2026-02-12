@@ -86,7 +86,12 @@ targetSlider.value = targetWpm.toString();
 engine.setTargetWpm(targetWpm);
 
 // Focus hidden input
-const focusInput = () => {
+const focusInput = (e?: MouseEvent) => {
+  if (e?.target instanceof HTMLElement) {
+    if (e.target.closest("select")) {
+      return;
+    }
+  }
   hiddenInput.focus();
 };
 window.addEventListener("click", focusInput);
@@ -291,6 +296,7 @@ const loadLanguage = async (filename: string) => {
       await engine.init(cachedWords);
       engine.setLanguage(filename); // Sync engine state & persist config
       langSelect.blur();
+      focusInput();
       return;
     }
 
@@ -309,6 +315,7 @@ const loadLanguage = async (filename: string) => {
     await engine.init(words);
     engine.setLanguage(filename); // Sync engine state & persist config
     langSelect.blur();
+    focusInput();
   } catch (err) {
     console.error("Failed to load language:", err);
   }
