@@ -218,20 +218,31 @@ input[type="range"]::-webkit-slider-runnable-track {
   font-family: var(--font-mono);
   font-size: 2.5rem;
   line-height: 1.6;
-  width: 80%;
+  width: 95%; /* Wider to minimize squeezing */
+  max-width: 1400px;
   text-align: center;
   position: relative;
-  /* batch renderer will inject content here */
+  margin: 0 auto;
+}
+
+.word-line {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  white-space: nowrap;
+  width: 100%;
+  min-height: 5rem; /* Stable vertical space */
 }
 
 /* New BatchRenderer Styles */
 .word {
   display: inline-block;
-  margin-right: 1.5rem; /* Space between words */
+  margin: 0 0.6rem;
   margin-bottom: 1rem;
   color: var(--text-muted);
   position: relative;
   padding-bottom: 4px;
+  flex-shrink: 0; /* Never shrink, we use scale instead */
 }
 
 .word.active {
