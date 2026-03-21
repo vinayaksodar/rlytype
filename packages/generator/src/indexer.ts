@@ -17,19 +17,32 @@ export class WordIndexer {
   }
 
   private buildIndex(words: string[]) {
-    const allUnigrams = new Set<string>();
-    const allBigrams = new Set<string>();
-    const allTrigrams = new Set<string>();
+    const fullIndex: Map<string, string[]> = new Map();
 
     for (const word of words) {
       const patterns = extractPatternsForWord(word);
       for (const p of patterns) {
-        if (!this.index.has(p)) {
-          this.index.set(p, []);
+        if (!fullIndex.has(p)) {
+          fullIndex.set(p, []);
         }
-        this.index.get(p)!.push(word);
+        fullIndex.get(p)!.push(word);
+      }
+    }
 
-        // Track unique counts
+    // Filter based on hardcoded frequency thresholds
+    // We only keep patterns that appear in at least N words.
+    const allUnigrams = new Set<string>();
+    const allBigrams = new Set<string>();
+    const allTrigrams = new Set<string>();
+
+    for (const [p, wordsForPattern] of fullIndex.entries()) {
+      let minFreq = 1;
+      if (p.length === 1) minFreq = 1;
+      else if (p.length === 2) minFreq = 3;
+      else if (p.length === 3) minFreq = 3;
+
+      if (wordsForPattern.length >= minFreq) {
+        this.index.set(p, wordsForPattern);
         if (p.length === 1) allUnigrams.add(p);
         else if (p.length === 2) allBigrams.add(p);
         else if (p.length === 3) allTrigrams.add(p);
